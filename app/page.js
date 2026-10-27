@@ -67,6 +67,7 @@ export default function PortalKDJ() {
     const [wizardStep, setWizardStep] = useState(1);
     const [uploadedDocs, setUploadedDocs] = useState({});
     const [buktiBayarUrl, setBuktiBayarUrl] = useState('');
+    const [isUnlockedManually, setIsUnlockedManually] = useState(false);
 
     const [formData, setFormData] = useState({
         nama_lengkap: '',
@@ -84,22 +85,29 @@ export default function PortalKDJ() {
     useEffect(() => {
         const savedUser = localStorage.getItem('kdj_user');
         if (savedUser) {
-            const parsed = JSON.parse(savedUser);
-            setUser(parsed);
-            setBuktiBayarUrl(parsed.bukti_bayar_url || '');
-            setFormData({
-                nama_lengkap: parsed.nama_lengkap || '',
-                tempat_lahir: parsed.tempat_lahir || '',
-                tanggal_lahir: parsed.tanggal_lahir || '',
-                jenis_kelamin: parsed.jenis_kelamin || 'Laki-laki',
-                no_paspor: parsed.no_paspor || '',
-                alamat_lengkap: parsed.alamat_lengkap || '',
-                asal_sekolah: parsed.asal_sekolah || '',
-                tahun_lulus: parsed.tahun_lulus || '',
-                pilihan_kampus: parsed.pilihan_kampus || 'University of Jordan',
-                pilihan_jurusan: parsed.pilihan_jurusan || 'Syariah / Ushuluddin'
-            });
-            fetchUploadedDocs(parsed.no_wa);
+            try {
+                const parsed = JSON.parse(savedUser);
+                setUser(parsed);
+                setBuktiBayarUrl(parsed.bukti_bayar_url || '');
+                setFormData({
+                    nama_lengkap: parsed.nama_lengkap || '',
+                    tempat_lahir: parsed.tempat_lahir || '',
+                    tanggal_lahir: parsed.tanggal_lahir || '',
+                    jenis_kelamin: parsed.jenis_kelamin || 'Laki-laki',
+                    no_paspor: parsed.no_paspor || '',
+                    alamat_lengkap: parsed.alamat_lengkap || '',
+                    asal_sekolah: parsed.asal_sekolah || '',
+                    tahun_lulus: parsed.tahun_lulus || '',
+                    pilihan_kampus: parsed.pilihan_kampus || 'University of Jordan',
+                    pilihan_jurusan: parsed.pilihan_jurusan || 'Syariah / Ushuluddin'
+                });
+                if (parsed.no_wa) {
+                    fetchUploadedDocs(parsed.no_wa);
+                }
+            } catch (e) {
+                console.error('Gagal membaca sesi user:', e);
+                localStorage.removeItem('kdj_user');
+            }
         }
     }, []);
 
@@ -115,7 +123,7 @@ export default function PortalKDJ() {
                     });
                     setUploadedDocs(mapDocs);
                 }
-                // Sinkronkan status terbaru pendaftar dari database (termasuk jika ada catatan revisi dari admin)
+                // Sinkronkan status terbaru pendaftar dari database
                 if (data.pendaftar) {
                     setBuktiBayarUrl(data.pendaftar.bukti_bayar_url || '');
                     setUser((prev) => {
@@ -123,6 +131,20 @@ export default function PortalKDJ() {
                         localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
                         return updatedUser;
                     });
+
+                    // Isi formData jika sebelumnya masih kosong tetapi di DB sudah ada
+                    setFormData((prev) => ({
+                        nama_lengkap: prev.nama_lengkap || data.pendaftar.nama_lengkap || '',
+                        tempat_lahir: prev.tempat_lahir || data.pendaftar.tempat_lahir || '',
+                        tanggal_lahir: prev.tanggal_lahir || data.pendaftar.tanggal_lahir || '',
+                        jenis_kelamin: prev.jenis_kelamin || data.pendaftar.jenis_kelamin || 'Laki-laki',
+                        no_paspor: prev.no_paspor || data.pendaftar.no_paspor || '',
+                        alamat_lengkap: prev.alamat_lengkap || data.pendaftar.alamat_lengkap || '',
+                        asal_sekolah: prev.asal_sekolah || data.pendaftar.asal_sekolah || '',
+                        tahun_lulus: prev.tahun_lulus || data.pendaftar.tahun_lulus || '',
+                        pilihan_kampus: prev.pilihan_kampus || data.pendaftar.pilihan_kampus || 'University of Jordan',
+                        pilihan_jurusan: prev.pilihan_jurusan || data.pendaftar.pilihan_jurusan || 'Syariah / Ushuluddin'
+                    }));
 
                     const st = (data.pendaftar.status_pendaftaran || '').toLowerCase();
                     if (st === 'rejected') {
@@ -245,23 +267,25 @@ export default function PortalKDJ() {
             });
             const data = await res.json();
             if (data.success) {
+                // Jangan kunci status pendaftaran jika baru simpan per-step (belum Final Submit)
+                const safeStatus = isFinalSubmit
+                    ? (isRevision ? 'Revisi Diajukan' : (data.user?.status_pendaftaran || 'Submitted'))
+                    : (isRevision ? 'Rejected' : 'Draft');
+
                 const updatedUser = {
                     ...user,
-                    ...data.user,
-                    ...(isFinalSubmit
-                        ? {
-                              status_pendaftaran: isRevision
-                                  ? 'Revisi Diajukan'
-                                  : data.user?.status_pendaftaran || 'Submitted'
-                          }
-                        : {})
+                    ...formData,
+                    ...(data.user || {}),
+                    status_pendaftaran: safeStatus
                 };
+
                 setUser(updatedUser);
                 localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
 
                 if (nextStep) {
                     setWizardStep(nextStep);
                 } else {
+                    setIsUnlockedManually(false);
                     alert(
                         isRevision
                             ? '🔄 Perbaikan berkas berhasil dikirim ulang! Tim Admin akan segera memeriksa kembali.'
@@ -271,6 +295,8 @@ export default function PortalKDJ() {
             } else {
                 alert('❌ Gagal menyimpan: ' + data.message);
             }
+        } catch {
+            alert('❌ Terjadi kesalahan saat menyimpan data.');
         } finally {
             setLoading(false);
         }
@@ -339,8 +365,15 @@ export default function PortalKDJ() {
         // Status penguncian form & deteksi mode revisi
         const isRejected = normStatus === 'rejected';
         const isApproved = normStatus === 'approved';
-        const isWaitingVerification = ['submitted', 'menunggu verifikasi', 'Menunggu Verifikasi', 'revisi diajukan', 'final_submit'].includes(normStatus);
-        const isLocked = isApproved || isWaitingVerification;
+        const isWaitingVerification =
+            ['submitted', 'menunggu verifikasi', 'revisi diajukan', 'final_submit'].includes(normStatus) &&
+            Boolean(buktiBayarUrl);
+
+        // Form hanya dikunci jika sudah Approved, atau sedang Menunggu Verifikasi (dan tidak dibuka manual oleh user)
+        const isLocked = isApproved || (isWaitingVerification && !isUnlockedManually);
+
+        const inputClass =
+            'w-full px-3.5 py-2.5 bg-white text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b] focus:ring-1 focus:ring-[#06315b]';
 
         return (
             <div className="min-h-screen bg-slate-100 text-slate-800 pb-14">
@@ -389,13 +422,26 @@ export default function PortalKDJ() {
                         )}
 
                         {isWaitingVerification && (
-                            <div className="mb-8 p-5 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl shadow-sm">
-                                <h3 className="text-[#06315b] font-extrabold text-base flex items-center gap-2">
-                                    ⏳ Pendaftaran Sedang Diverifikasi Tim Admin
-                                </h3>
-                                <p className="text-slate-600 mt-1 text-xs leading-relaxed">
-                                    Formulir dan dokumen Anda saat ini dikunci sementara karena sedang dalam antrean pemeriksaan. Hasil verifikasi akan dikirimkan langsung ke nomor WhatsApp Anda.
-                                </p>
+                            <div className="mb-8 p-5 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h3 className="text-[#06315b] font-extrabold text-base flex items-center gap-2">
+                                        ⏳ Pendaftaran Sedang Diverifikasi Tim Admin
+                                    </h3>
+                                    <p className="text-slate-600 mt-1 text-xs leading-relaxed">
+                                        {isUnlockedManually
+                                            ? 'Mode edit aktif. Jangan lupa klik simpan setelah memperbarui data Anda.'
+                                            : 'Formulir dan dokumen Anda saat ini dikunci sementara karena sedang dalam antrean pemeriksaan.'}
+                                    </p>
+                                </div>
+                                {!isUnlockedManually && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsUnlockedManually(true)}
+                                        className="px-3.5 py-2 bg-white hover:bg-slate-100 text-[#06315b] border border-amber-400 rounded-lg text-xs font-bold shrink-0 shadow-sm transition"
+                                    >
+                                        ✏️ Edit Data / Berkas
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -458,51 +504,97 @@ export default function PortalKDJ() {
                         {wizardStep === 1 && (
                             <div className="space-y-6">
                                 <div className="border-l-4 border-[#06315b] pl-3">
-                                    <h2 className="text-base font-bold text-[#06315b]">1. Personal Data (Data Diri Calon Mahasiswa)</h2>
+                                    <h2 className="text-base font-bold text-[#06315b]">
+                                        1. Personal Data (Data Diri Calon Mahasiswa)
+                                    </h2>
                                     <p className="text-xs text-slate-500">Isi identitas diri sesuai dengan Paspor atau KTP resmi.</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nama Lengkap (Sesuai Paspor) <span className="text-red-500">*</span></label>
-                                        <input type="text" disabled={isLocked} value={formData.nama_lengkap} onChange={(e) => setFormData({...formData, nama_lengkap: e.target.value})} placeholder="Masukkan nama lengkap" className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={formData.nama_lengkap}
+                                            onChange={(e) => setFormData({ ...formData, nama_lengkap: e.target.value })}
+                                            placeholder="Masukkan nama lengkap"
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Jenis Kelamin <span className="text-red-500">*</span></label>
-                                        <select disabled={isLocked} value={formData.jenis_kelamin} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]">
+                                        <select
+                                            disabled={isLocked}
+                                            value={formData.jenis_kelamin}
+                                            onChange={(e) => setFormData({ ...formData, jenis_kelamin: e.target.value })}
+                                            className={inputClass}
+                                        >
                                             <option value="Laki-laki">Laki-laki (Male)</option>
                                             <option value="Perempuan">Perempuan (Female)</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tempat Lahir <span className="text-red-500">*</span></label>
-                                        <input type="text" disabled={isLocked} value={formData.tempat_lahir} onChange={(e) => setFormData({...formData, tempat_lahir: e.target.value})} placeholder="Contoh: Semarang" className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={formData.tempat_lahir}
+                                            onChange={(e) => setFormData({ ...formData, tempat_lahir: e.target.value })}
+                                            placeholder="Contoh: Semarang"
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tanggal Lahir <span className="text-red-500">*</span></label>
-                                        <input type="date" disabled={isLocked} value={formData.tanggal_lahir} onChange={(e) => setFormData({...formData, tanggal_lahir: e.target.value})} className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="date"
+                                            disabled={isLocked}
+                                            value={formData.tanggal_lahir}
+                                            onChange={(e) => setFormData({ ...formData, tanggal_lahir: e.target.value })}
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor Paspor <span className="text-red-500">*</span></label>
-                                        <input type="text" disabled={isLocked} value={formData.no_paspor} onChange={(e) => setFormData({...formData, no_paspor: e.target.value})} placeholder="Contoh: X1234567" className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={formData.no_paspor}
+                                            onChange={(e) => setFormData({ ...formData, no_paspor: e.target.value })}
+                                            placeholder="Contoh: X1234567"
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor WhatsApp Terdaftar</label>
-                                        <input type="text" disabled value={user.no_wa} className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 font-mono" />
+                                        <input
+                                            type="text"
+                                            disabled
+                                            value={user.no_wa || ''}
+                                            className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 font-mono"
+                                        />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Alamat Lengkap Domisili <span className="text-red-500">*</span></label>
-                                        <textarea rows={2} disabled={isLocked} value={formData.alamat_lengkap} onChange={(e) => setFormData({...formData, alamat_lengkap: e.target.value})} placeholder="Nama jalan, kecamatan, kabupaten/kota, provinsi..." className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <textarea
+                                            rows={2}
+                                            disabled={isLocked}
+                                            value={formData.alamat_lengkap}
+                                            onChange={(e) => setFormData({ ...formData, alamat_lengkap: e.target.value })}
+                                            placeholder="Nama jalan, kecamatan, kabupaten/kota, provinsi..."
+                                            className={inputClass}
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="flex justify-end pt-4 border-t border-slate-100">
                                     {isLocked ? (
-                                        <button onClick={() => setWizardStep(2)} className="px-6 py-2.5 bg-[#06315b] text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                        <button type="button" onClick={() => setWizardStep(2)} className="px-6 py-2.5 bg-[#06315b] text-amber-400 text-sm font-bold rounded-lg transition shadow">
                                             Lanjut ke Step 2 &rarr;
                                         </button>
                                     ) : (
-                                        <button onClick={() => handleSaveStep(2)} disabled={loading} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                        <button type="button" onClick={() => handleSaveStep(2)} disabled={loading} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
                                             {loading ? 'Menyimpan...' : 'Simpan & Lanjut (Next) >'}
                                         </button>
                                     )}
@@ -521,15 +613,34 @@ export default function PortalKDJ() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nama Sekolah / Pesantren Asal <span className="text-red-500">*</span></label>
-                                        <input type="text" disabled={isLocked} value={formData.asal_sekolah} onChange={(e) => setFormData({...formData, asal_sekolah: e.target.value})} placeholder="Contoh: MA Al-Irsyad / SMA Negeri 1" className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="text"
+                                            disabled={isLocked}
+                                            value={formData.asal_sekolah}
+                                            onChange={(e) => setFormData({ ...formData, asal_sekolah: e.target.value })}
+                                            placeholder="Contoh: MA Al-Irsyad / SMA Negeri 1"
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tahun Kelulusan <span className="text-red-500">*</span></label>
-                                        <input type="number" disabled={isLocked} value={formData.tahun_lulus} onChange={(e) => setFormData({...formData, tahun_lulus: e.target.value})} placeholder="Contoh: 2026" className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]" />
+                                        <input
+                                            type="number"
+                                            disabled={isLocked}
+                                            value={formData.tahun_lulus}
+                                            onChange={(e) => setFormData({ ...formData, tahun_lulus: e.target.value })}
+                                            placeholder="Contoh: 2026"
+                                            className={inputClass}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pilihan Universitas di Yordania <span className="text-red-500">*</span></label>
-                                        <select disabled={isLocked} value={formData.pilihan_kampus} onChange={(e) => setFormData({...formData, pilihan_kampus: e.target.value})} className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]">
+                                        <select
+                                            disabled={isLocked}
+                                            value={formData.pilihan_kampus}
+                                            onChange={(e) => setFormData({ ...formData, pilihan_kampus: e.target.value })}
+                                            className={inputClass}
+                                        >
                                             <option value="University of Jordan">University of Jordan (Amman)</option>
                                             <option value="Yarmouk University">Yarmouk University (Irbid)</option>
                                             <option value="Mutah University">Mu&apos;tah University (Karak)</option>
@@ -538,7 +649,13 @@ export default function PortalKDJ() {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Pilihan Jurusan <span className="text-red-500">*</span></label>
-                                        <select disabled={isLocked} value={formData.pilihan_jurusan} onChange={(e) => setFormData({...formData, pilihan_jurusan: e.target.value})} className="w-full px-3.5 py-2.5 bg-white disabled:bg-slate-100 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b]">
+                                        <select
+                                            disabled={isLocked}
+                                            value={formData.pilihan_jurusan}
+                                            onChange={(e) => setFormData({ ...formData, pilihan_jurusan: e.target.value })}
+                                            className={inputClass}
+                                        >
+                                            <option value="Syariah / Ushuluddin">Syariah / Ushuluddin</option>
                                             <option value="Ekonomi Syariah">Ekonomi Syariah</option>
                                             <option value="Bahasa & Sastra Arab">Bahasa & Sastra Arab</option>
                                             <option value="Fiqh wa Ushuluhu">Fiqh wa Ushuluhu</option>
@@ -549,15 +666,15 @@ export default function PortalKDJ() {
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
-                                    <button onClick={() => setWizardStep(1)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
+                                    <button type="button" onClick={() => setWizardStep(1)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali
                                     </button>
                                     {isLocked ? (
-                                        <button onClick={() => setWizardStep(3)} className="px-6 py-2.5 bg-[#06315b] text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                        <button type="button" onClick={() => setWizardStep(3)} className="px-6 py-2.5 bg-[#06315b] text-amber-400 text-sm font-bold rounded-lg transition shadow">
                                             Lanjut ke Step 3 &rarr;
                                         </button>
                                     ) : (
-                                        <button onClick={() => handleSaveStep(3)} disabled={loading} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                        <button type="button" onClick={() => handleSaveStep(3)} disabled={loading} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
                                             {loading ? 'Menyimpan...' : 'Simpan & Lanjut (Next) >'}
                                         </button>
                                     )}
@@ -635,17 +752,17 @@ export default function PortalKDJ() {
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
-                                    <button onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
+                                    <button type="button" onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali
                                     </button>
-                                    <button onClick={() => setWizardStep(4)} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                    <button type="button" onClick={() => setWizardStep(4)} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
                                         Lanjut ke Pembayaran (Step 4) &gt;
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {/* STEP 4: PEMBAYARAN ADMINISTRASI (OPSI B) */}
+                        {/* STEP 4: PEMBAYARAN ADMINISTRASI */}
                         {wizardStep === 4 && (
                             <div className="space-y-6">
                                 <div className="border-l-4 border-[#06315b] pl-3">
@@ -738,10 +855,11 @@ export default function PortalKDJ() {
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
-                                    <button onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
+                                    <button type="button" onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali ke Berkas
                                     </button>
                                     <button
+                                        type="button"
                                         onClick={() => handleSaveStep(null)}
                                         disabled={loading || isLocked}
                                         className={`px-6 py-2.5 text-sm font-extrabold rounded-lg transition shadow-md ${
@@ -885,7 +1003,7 @@ export default function PortalKDJ() {
                                     placeholder="Contoh: 085156203449"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-[#06315b]"
+                                    className="w-full px-4 py-3 bg-slate-50 text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-[#06315b]"
                                 />
                             </div>
                             <button
@@ -909,7 +1027,7 @@ export default function PortalKDJ() {
                                     placeholder="123456"
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value)}
-                                    className="w-full text-center tracking-widest text-2xl font-bold px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#06315b]"
+                                    className="w-full text-center tracking-widest text-2xl font-bold px-4 py-3 bg-slate-50 text-slate-900 placeholder:text-slate-300 border border-slate-300 rounded-xl focus:outline-none focus:border-[#06315b]"
                                 />
                             </div>
                             <button
@@ -934,18 +1052,4 @@ export default function PortalKDJ() {
             <div className="h-4 bg-amber-400 w-full" />
         </div>
     );
-    const renderStatusBadge = (status) => {
-  switch (status) {
-    case 'Approved':
-      return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">✅ Approved</span>;
-    case 'Rejected':
-      return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">❌ Perlu Revisi</span>;
-    case 'Revisi Diajukan':
-      return <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 animate-pulse">🔄 Revisi Masuk</span>;
-    case 'Submitted':
-      return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">⏳ Baru Masuk</span>;
-    default:
-      return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600">📝 Draft</span>;
-  }
-};
 }
