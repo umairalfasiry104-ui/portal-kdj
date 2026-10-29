@@ -1,46 +1,84 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import {
+    getSupabaseAdmin,
+    consumeOtpAtomically,
+    getPhoneCandidates,
+    setUserSessionCookie,
+    clearSessionCookie,
+    USER_COOKIE_NAME,
+    createSignedStorageUrl
+} from '@/lib/security';
 
 export async function POST(req) {
     try {
-        const { phone, otp } = await req.json();
+        const body = await req.json().catch(() => null);
+        const phone = body?.phone;
+        const otp = body?.otp;
+
         if (!phone || !otp) {
-            return NextResponse.json({ success: false, message: 'Nomor WA dan OTP wajib diisi' }, { status: 400 });
+            return NextResponse.json(
+                { success: false, message: 'Nomor WA dan OTP wajib diisi' },
+                { status: 400 }
+            );
         }
 
-        const { data: validOtp, error: queryError } = await supabase
-            .from('otp_auth')
-            .select('*')
-            .eq('no_wa', phone)
-            .eq('kode_otp', otp)
-            .eq('is_used', false)
-            .gt('expires_at', new Date().toISOString())
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        const supabase = getSupabaseAdmin();
+        const otpResult = await consumeOtpAtomically(supabase, phone, otp);
 
-        if (queryError || !validOtp) {
-            return NextResponse.json({ success: false, message: 'Kode OTP salah atau kedaluwarsa!' }, { status: 400 });
+        if (!otpResult.valid) {
+            return NextResponse.json(
+                { success: false, message: otpResult.message },
+                { status: otpResult.status }
+            );
         }
 
-        await supabase.from('otp_auth').update({ is_used: true }).eq('id', validOtp.id);
+        const normalizedPhone = otpResult.normalizedPhone;
+        const candidates = getPhoneCandidates(normalizedPhone);
 
-        // Ambil atau buat data pendaftar lalu kembalikan ke frontend
-        const { data: user, error: userError } = await supabase
+        // Cek apakah pendaftar sudah ada (mendukung format 08xx maupun 628xx lama)
+        const { data: existingUser } = await supabase
             .from('pendaftar')
-            .upsert({ no_wa: phone }, { onConflict: 'no_wa' })
-            .select()
-            .single();
+            .select('*')
+            .in('no_wa', candidates)
+            .maybeSingle();
 
-        if (userError) throw userError;
+        let user = existingUser;
 
-        return NextResponse.json({ success: true, user });
+        if (!user) {
+            // Pendaftar baru: set status_pendaftaran eksplisit ke 'draft_berkas'
+            // agar tidak terkena default kolom DB 'Submitted' yang langsung mengunci form!
+            const { data: createdUser, error: insertError } = await supabase
+                .from('pendaftar')
+                .insert({
+                    no_wa: normalizedPhone,
+                    status_pendaftaran: 'draft_berkas',
+                    status_pembayaran: 'Belum Bayar'
+                })
+                .select('*')
+                .single();
+
+            if (insertError) throw insertError;
+            user = createdUser;
+        }
+
+        if (user?.bukti_bayar_url) {
+            user.bukti_bayar_url = await createSignedStorageUrl(supabase, user.bukti_bayar_url);
+        }
+
+        const response = NextResponse.json({ success: true, user });
+        setUserSessionCookie(response, user);
+        return response;
     } catch (error) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+        console.error('[-] Error verify-otp:', error.message);
+        return NextResponse.json(
+            { success: false, message: 'Gagal memverifikasi kode OTP.' },
+            { status: 500 }
+        );
     }
+}
+
+export async function DELETE() {
+    const response = NextResponse.json({ success: true, message: 'Sesi pengguna dihapus.' });
+    clearSessionCookie(response, USER_COOKIE_NAME);
+    return response;
 }

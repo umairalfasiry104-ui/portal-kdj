@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 function KDJLogoHeader() {
     return (
-        <a href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
+        <Link href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
             <img
                 src="/logo-kdj-panjang.png"
                 alt="Kuliah di Jordan"
                 className="w-full h-auto object-cover scale-125"
             />
-        </a>
+        </Link>
     );
 }
 
@@ -48,18 +49,14 @@ export default function AdminDashboard() {
 
     const [newAdmin, setNewAdmin] = useState({ no_wa: '', nama_admin: '', role: 'Admin Verifikator' });
 
-    useEffect(() => {
-        const savedAdmin = localStorage.getItem('kdj_admin');
-        if (savedAdmin) {
-            setAdminUser(JSON.parse(savedAdmin));
-            fetchPendaftar();
-            fetchAdmins();
-            fetchJadwal();
-        }
-    }, []);
-
     const fetchPendaftar = async () => {
         const res = await fetch('/api/admin/pendaftar');
+        if (res.status === 401) {
+            localStorage.removeItem('kdj_admin');
+            setAdminUser(null);
+            setAuthStep(1);
+            return;
+        }
         const result = await res.json();
         if (result.success) setPendaftarList(result.data);
     };
@@ -84,6 +81,37 @@ export default function AdminDashboard() {
             console.error('Gagal mengambil data jadwal:', error);
         }
     };
+useEffect(() => {
+    const savedAdmin = localStorage.getItem('kdj_admin');
+    if (!savedAdmin) return;
+
+    let parsedAdmin;
+
+    try {
+        parsedAdmin = JSON.parse(savedAdmin);
+    } catch (error) {
+        console.error('Gagal membaca sesi admin:', error);
+        localStorage.removeItem('kdj_admin');
+        return;
+    }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+        if (cancelled) return;
+
+        setAdminUser(parsedAdmin);
+
+        void fetchPendaftar();
+        void fetchAdmins();
+        void fetchJadwal();
+    });
+
+    return () => {
+        cancelled = true;
+    };
+}, []);
+
 
     const handleUpdateStatusJadwal = async (id, newStatus) => {
         try {
@@ -233,10 +261,16 @@ export default function AdminDashboard() {
             });
             const data = await res.json();
             if (data.success) {
-                alert('✅ Status pendaftaran & pembayaran diperbarui, serta Notifikasi WA telah dikirim!');
-                fetchPendaftar();
-                setSelectedUser(null);
-            } else {
+                if (data.wa_notified) {
+                    alert('✅ Status pendaftaran & pembayaran berhasil diperbarui, dan Notifikasi WA telah terkirim!');
+                    }
+                    else {
+                    alert('⚠️ Status pendaftaran & pembayaran berhasil disimpan di database, namun Notifikasi WA belum terkirim (pastikan WhatsApp Bot aktif).');
+             }
+              fetchPendaftar();
+              setSelectedUser(null);
+            }
+             else {
                 alert('❌ Gagal update: ' + data.message);
             }
         } finally {
@@ -244,7 +278,14 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleLogoutAdmin = () => {
+    const handleLogoutAdmin = async () => {
+        try {
+            await fetch('/api/admin/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'logout' })
+            });
+        } catch {}
         localStorage.removeItem('kdj_admin');
         setAdminUser(null);
         setOtp('');
@@ -258,7 +299,7 @@ export default function AdminDashboard() {
                 <div className="bg-[#042444] text-slate-200 text-xs py-2 px-6 border-b border-[#0a3f73]">
                     <div className="max-w-6xl mx-auto flex justify-between items-center">
                         <span>📞 0813-6624-5544 | ✉️ admin@kuliahdijordan.com</span>
-                        <a href="/" className="text-amber-400 hover:underline font-semibold">&larr; Ke Portal Mahasiswa</a>
+                        <Link href="/" className="text-amber-400 hover:underline font-semibold">&larr; Ke Portal Mahasiswa</Link>
                     </div>
                 </div>
 
@@ -433,9 +474,9 @@ export default function AdminDashboard() {
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-slate-600">Tagihan: Rp {Number(selectedUser.nominal_tagihan || 1500000).toLocaleString('id-ID')}</span>
                                         {selectedUser.bukti_bayar_url ? (
-                                            <a href={selectedUser.bukti_bayar_url} target="_blank" rel="noreferrer" className="text-amber-600 font-bold underline">
+                                            <Link href={selectedUser.bukti_bayar_url} target="_blank" rel="noreferrer" className="text-amber-600 font-bold underline">
                                                 🔍 Lihat Bukti Transfer
-                                            </a>
+                                            </Link>
                                         ) : (
                                             <span className="text-red-500 font-semibold">⚠️ Belum upload bukti bayar</span>
                                         )}
@@ -461,9 +502,9 @@ export default function AdminDashboard() {
                                             <div key={doc.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                                                 <div>
                                                     <div className="text-xs font-bold uppercase text-[#06315b]">{doc.jenis_dokumen}</div>
-                                                    <a href={doc.file_path} target="_blank" rel="noreferrer" className="text-xs text-amber-600 font-semibold underline">
+                                                    <Link href={doc.file_path} target="_blank" rel="noreferrer" className="text-xs text-amber-600 font-semibold underline">
                                                         Buka Berkas
-                                                    </a>
+                                                    </Link>
                                                 </div>
                                                 <select
                                                     value={doc.status_dokumen || 'pending'}
