@@ -69,6 +69,9 @@ export default function PortalKDJ() {
     const [uploadedDocs, setUploadedDocs] = useState({});
     const [buktiBayarUrl, setBuktiBayarUrl] = useState('');
     const [isUnlockedManually, setIsUnlockedManually] = useState(false);
+    const [followupConsent, setFollowupConsent] = useState(false);
+    const [savingFollowupConsent, setSavingFollowupConsent] = useState(false);
+    const [followupConsentMessage, setFollowupConsentMessage] = useState('');
 
     const [formData, setFormData] = useState({
         nama_lengkap: '',
@@ -84,23 +87,33 @@ export default function PortalKDJ() {
     });
 
     const fetchUploadedDocs = async (userPhone) => {
-        try {
-            const res = await fetch(`/api/upload-dokumen?no_wa=${encodeURIComponent(userPhone)}`);
-            if (res.status === 401 || res.status === 403) {
-                localStorage.removeItem('kdj_user');
-                setUser(null);
-                setAuthStep(1);
-                return;
-            }
-            const data = await res.json();
-            if (data.success) {
-                if (data.documents) {
-                    const mapDocs = {};
-                    data.documents.forEach((d) => {
-                        mapDocs[d.jenis_dokumen] = d;
-                    });
-                    setUploadedDocs(mapDocs);
-                }
+    try {
+      const res = await fetch(`/api/upload-dokumen?no_wa=${encodeURIComponent(userPhone)}`);
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('kdj_user');
+        setUser(null);
+        setFollowupConsent(false);
+        setFollowupConsentMessage('');
+        setAuthStep(1);
+        return;
+      }
+
+      // Amankan pembacaan JSON dengan .catch() agar tidak crash jika server error 500
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        console.error('Server mengembalikan respons kosong atau error.');
+        return;
+      }
+
+      if (data.success) {
+        if (data.documents) {
+          const mapDocs = {};
+          data.documents.forEach((d) => {
+            mapDocs[d.jenis_dokumen] = d;
+          });
+          setUploadedDocs(mapDocs);
+        }
+        // ... sisa kode selanjutnya ...
                 // Sinkronkan status terbaru pendaftar dari database
                 if (data.pendaftar) {
                     setBuktiBayarUrl(data.pendaftar.bukti_bayar_url || '');
@@ -179,6 +192,42 @@ export default function PortalKDJ() {
         cancelled = true;
     };
 }, []);
+
+    useEffect(() => {
+        if (!user?.no_wa) return;
+
+        let active = true;
+        fetch('/api/followups/consent', { cache: 'no-store' })
+            .then((response) => response.json().catch(() => null))
+            .then((result) => {
+                if (active && result?.success) setFollowupConsent(result.consented === true);
+            })
+            .catch(() => {});
+
+        return () => { active = false; };
+    }, [user?.no_wa]);
+
+    const handleFollowupConsentChange = async (nextValue) => {
+        setSavingFollowupConsent(true);
+        setFollowupConsentMessage('');
+        try {
+            const response = await fetch('/api/followups/consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consented: nextValue })
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || 'Persetujuan belum dapat disimpan.');
+            }
+            setFollowupConsent(nextValue);
+            setFollowupConsentMessage(result.message || 'Pengaturan persetujuan tersimpan.');
+        } catch (error) {
+            setFollowupConsentMessage(error.message || 'Persetujuan belum dapat disimpan.');
+        } finally {
+            setSavingFollowupConsent(false);
+        }
+    };
 
     const calculateProgress = () => {
         const fields = [
@@ -386,6 +435,8 @@ if (nextStep) {
         } catch {}
         localStorage.removeItem('kdj_user');
         setUser(null);
+        setFollowupConsent(false);
+        setFollowupConsentMessage('');
         setOtp('');
         setAuthStep(1);
     };
@@ -434,7 +485,7 @@ if (nextStep) {
 
                 <div className="max-w-6xl mx-auto px-6 -mt-14 grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
                     <div className="lg:col-span-3 bg-white rounded-2xl shadow-md border-t-4 border-amber-400 p-8">
-                        
+
                         {/* BANNER STATUS & CATATAN ADMIN */}
                         {isRejected && (
                             <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-600 rounded-r-xl shadow-sm">
@@ -697,6 +748,24 @@ if (nextStep) {
                                             <option value="Aqidah">Aqidah</option>
                                         </select>
                                     </div>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={followupConsent}
+                                            disabled={savingFollowupConsent}
+                                            onChange={(event) => void handleFollowupConsentChange(event.target.checked)}
+                                            className="mt-0.5 h-4 w-4 accent-[#06315b]"
+                                        />
+                                        <span className="text-xs leading-relaxed text-slate-700">
+                                            Saya bersedia menerima pesan tindak lanjut terkait pertanyaan, konsultasi, atau proses pendaftaran KDJ melalui WhatsApp. Saya dapat menarik persetujuan kapan saja.
+                                            <span className="block text-[10px] text-slate-500 mt-1">Opsional. Tidak dicentang secara default dan tidak memengaruhi proses pendaftaran.</span>
+                                        </span>
+                                    </label>
+                                    {savingFollowupConsent && <p className="text-[10px] text-slate-500">Menyimpan persetujuan...</p>}
+                                    {followupConsentMessage && <p role="status" className="text-[10px] text-slate-600">{followupConsentMessage}</p>}
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">

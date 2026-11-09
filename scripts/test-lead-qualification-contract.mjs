@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const migration=fs.readFileSync(new URL('../supabase/migrations/20261109_kdj_lead_qualification_fu_final.sql',import.meta.url),'utf8');
+const route=fs.readFileSync(new URL('../app/api/admin/lead-qualification/route.js',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../app/admin/components/AdminLeadQualificationPanel.jsx',import.meta.url),'utf8');
+assert.match(migration,/sequence_status='AWAITING_IDLE'/);
+assert.match(migration,/interval '30 minutes'/);
+assert.match(migration,/confirmed_category<>'DINGIN'/);
+assert.match(migration,/,'HELD_COMPLIANCE','WHATSAPP_COMPLIANCE_GATE'/);
+assert.match(migration,/delivery_enabled=false/);
+assert.match(migration,/kdj_record_followup_inbound/);
+assert.match(migration,/kdj_evaluate_followup_eligibility/);
+assert.match(route,/Super Admin', 'Admin Konsultan'/);
+assert.match(route,/kdj_admin_set_lead_qualification/);
+assert.match(ui,/Simpan Keputusan Admin/);
+assert.match(ui,/DINGIN/);
+console.log('PASS: Lead qualification + FU schema/API/UI safety contract.');
+
+assert.match(migration, /INVALIDATED_BY_INBOUND/);
+assert.match(migration, /LEAD_QUALIFICATION_STALE_INBOUND/);
+assert.match(route, /p_expected_sequence_id/);
+assert.match(migration, /p_expected_sequence_id uuid/);

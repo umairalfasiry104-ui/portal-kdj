@@ -10,6 +10,49 @@ import {
     callWaBotApi
 } from '@/lib/security';
 
+// Kontrak data customer: tidak memasukkan field operasional/internal Portal.
+const CUSTOMER_UPDATE_COLUMNS = [
+    'id',
+    'no_wa',
+    'nama_lengkap',
+    'tempat_lahir',
+    'tanggal_lahir',
+    'jenis_kelamin',
+    'no_paspor',
+    'alamat_lengkap',
+    'asal_sekolah',
+    'tahun_lulus',
+    'pilihan_kampus',
+    'pilihan_jurusan',
+    'status_pendaftaran',
+    'status_pembayaran',
+    'nominal_tagihan',
+    'created_at',
+    'updated_at'
+].join(', ');
+
+function toCustomerUpdateDto(record) {
+    return {
+        id: record.id,
+        no_wa: record.no_wa,
+        nama_lengkap: record.nama_lengkap,
+        tempat_lahir: record.tempat_lahir,
+        tanggal_lahir: record.tanggal_lahir,
+        jenis_kelamin: record.jenis_kelamin,
+        no_paspor: record.no_paspor,
+        alamat_lengkap: record.alamat_lengkap,
+        asal_sekolah: record.asal_sekolah,
+        tahun_lulus: record.tahun_lulus,
+        pilihan_kampus: record.pilihan_kampus,
+        pilihan_jurusan: record.pilihan_jurusan,
+        status_pendaftaran: record.status_pendaftaran,
+        status_pembayaran: record.status_pembayaran,
+        nominal_tagihan: record.nominal_tagihan,
+        created_at: record.created_at,
+        updated_at: record.updated_at
+    };
+}
+
 function isValidDateString(dateStr) {
     if (
         typeof dateStr !== 'string' ||
@@ -28,7 +71,7 @@ function isValidDateString(dateStr) {
 
 export async function POST(req) {
     try {
-        const session = getUserSession(req);
+        const session = await getUserSession(req);
         if (!session) {
             return NextResponse.json(
                 { success: false, message: 'Sesi login tidak valid atau telah berakhir. Silakan login kembali.' },
@@ -36,27 +79,123 @@ export async function POST(req) {
             );
         }
 
-        const body = await req.json().catch(() => null);
-        if (!body || typeof body !== 'object') {
-            return NextResponse.json({ success: false, message: 'Payload JSON tidak valid.' }, { status: 400 });
-        }
+const body = await req.json().catch(() => null);
 
-        const {
-            no_wa,
-            nama_lengkap,
-            tempat_lahir,
-            tanggal_lahir,
-            jenis_kelamin,
-            no_paspor,
-            alamat_lengkap,
-            asal_sekolah,
-            tahun_lulus,
-            pilihan_kampus,
-            pilihan_jurusan,
-            is_final_submit
-        } = body;
+// Payload harus berupa plain JSON object.
+if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    Object.getPrototypeOf(body) !== Object.prototype
+) {
+    return NextResponse.json(
+        {
+            success: false,
+            message: 'Payload JSON tidak valid.'
+        },
+        { status: 400 }
+    );
+}
 
-        if (
+// Semua field formulir harus dikirim.
+// Nilai kosong tetap diperbolehkan untuk penyimpanan draft.
+const requiredFields = [
+    'nama_lengkap',
+    'tempat_lahir',
+    'tanggal_lahir',
+    'jenis_kelamin',
+    'no_paspor',
+    'alamat_lengkap',
+    'asal_sekolah',
+    'tahun_lulus',
+    'pilihan_kampus',
+    'pilihan_jurusan'
+];
+
+const missingFields = requiredFields.filter(
+    (field) => !Object.prototype.hasOwnProperty.call(body, field)
+);
+
+if (missingFields.length > 0) {
+    return NextResponse.json(
+        {
+            success: false,
+            message: 'Payload formulir tidak lengkap.',
+            missing_fields: missingFields
+        },
+        { status: 422 }
+    );
+}
+
+// Validasi tipe string.
+const stringFields = [
+    'nama_lengkap',
+    'tempat_lahir',
+    'no_paspor',
+    'alamat_lengkap',
+    'asal_sekolah',
+    'jenis_kelamin',
+    'pilihan_kampus',
+    'pilihan_jurusan'
+];
+
+const invalidStringFields = stringFields.filter(
+    (field) => typeof body[field] !== 'string'
+);
+
+// Tanggal harus string atau null.
+if (
+    body.tanggal_lahir !== null &&
+    typeof body.tanggal_lahir !== 'string'
+) {
+    invalidStringFields.push('tanggal_lahir');
+}
+
+// Tahun boleh berupa string, number, atau null.
+if (
+    body.tahun_lulus !== null &&
+    typeof body.tahun_lulus !== 'string' &&
+    typeof body.tahun_lulus !== 'number'
+) {
+    invalidStringFields.push('tahun_lulus');
+}
+
+// Nomor WhatsApp opsional karena identitas utama dari sesi.
+if (
+    body.no_wa !== undefined &&
+    body.no_wa !== null &&
+    typeof body.no_wa !== 'string'
+) {
+    invalidStringFields.push('no_wa');
+}
+
+if (invalidStringFields.length > 0) {
+    return NextResponse.json(
+        {
+            success: false,
+            message: 'Tipe data field formulir tidak valid.',
+            invalid_fields: invalidStringFields
+        },
+        { status: 422 }
+    );
+}
+
+const {
+    no_wa,
+    nama_lengkap,
+    tempat_lahir,
+    tanggal_lahir,
+    jenis_kelamin,
+    no_paspor,
+    alamat_lengkap,
+    asal_sekolah,
+    tahun_lulus,
+    pilihan_kampus,
+    pilihan_jurusan,
+    is_final_submit
+} = body;
+
+if (
     is_final_submit !== undefined &&
     typeof is_final_submit !== 'boolean'
 ) {
@@ -64,6 +203,19 @@ export async function POST(req) {
         {
             success: false,
             message: 'is_final_submit harus berupa boolean.'
+        },
+        { status: 422 }
+    );
+}
+
+if (
+    body.is_revision !== undefined &&
+    typeof body.is_revision !== 'boolean'
+) {
+    return NextResponse.json(
+        {
+            success: false,
+            message: 'is_revision harus berupa boolean.'
         },
         { status: 422 }
     );
@@ -150,25 +302,82 @@ if (hasPayloadPhone) {
         }
 
         let parsedTahunLulus = null;
-        if (tahun_lulus !== undefined && tahun_lulus !== null && String(tahun_lulus).trim() !== '') {
-            parsedTahunLulus = Number.parseInt(String(tahun_lulus), 10);
+
+        const hasTahunLulus =
+            tahun_lulus !== undefined &&
+            tahun_lulus !== null &&
+            !(typeof tahun_lulus === 'string' && tahun_lulus.trim() === '');
+
+        if (hasTahunLulus) {
+            const isAllowedType =
+                typeof tahun_lulus === 'string' ||
+                typeof tahun_lulus === 'number';
+
+            const rawTahunLulus = isAllowedType
+                ? String(tahun_lulus).trim()
+                : '';
+
             const currentYear = new Date().getFullYear();
-            if (Number.isNaN(parsedTahunLulus) || parsedTahunLulus < 1990 || parsedTahunLulus > currentYear + 2) {
-                return NextResponse.json({ success: false, message: 'Tahun kelulusan tidak valid.' }, { status: 422 });
+
+            if (!/^\d{4}$/.test(rawTahunLulus)) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Tahun kelulusan tidak valid.'
+                    },
+                    { status: 422 }
+                );
+            }
+
+            parsedTahunLulus = Number(rawTahunLulus);
+
+            if (
+                !Number.isInteger(parsedTahunLulus) ||
+                parsedTahunLulus < 1990 ||
+                parsedTahunLulus > currentYear + 2
+            ) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Tahun kelulusan tidak valid.'
+                    },
+                    { status: 422 }
+                );
             }
         }
 
-        const supabase = getSupabaseAdmin();
         const candidates = getPhoneCandidates(sessionPhone);
+        if (candidates.length === 0) {
+            return NextResponse.json(
+                { success: false, message: 'Nomor WhatsApp sesi tidak valid.' },
+                { status: 403 }
+            );
+        }
 
+        const supabase = getSupabaseAdmin();
         const { data: currentRecord, error: fetchErr } = await supabase
             .from('pendaftar')
-            .select('*')
+            .select('id, no_wa, status_pendaftaran, bukti_bayar_url')
+            // Identitas utama berasal dari UUID sesi, bukan payload browser.
+            // Filter nomor tambahan mengikat ulang record ke nomor sesi.
+            .eq('id', session.sub)
             .in('no_wa', candidates)
             .maybeSingle();
 
-        if (fetchErr || !currentRecord) {
-            return NextResponse.json({ success: false, message: 'Data pendaftar tidak ditemukan.' }, { status: 404 });
+        if (fetchErr) {
+            console.error(
+                '[-] Gagal mengambil record pendaftar milik sesi:',
+                fetchErr.code,
+                fetchErr.message
+            );
+            throw fetchErr;
+        }
+
+        if (!currentRecord) {
+            return NextResponse.json(
+                { success: false, message: 'Data pendaftar tidak ditemukan.' },
+                { status: 404 }
+            );
         }
 
         const currentStatusNorm = (currentRecord.status_pendaftaran || '').toLowerCase();
@@ -257,7 +466,10 @@ if (hasPayloadPhone) {
                 updated_at: new Date().toISOString()
             })
             .eq('id', currentRecord.id)
-            .select('*')
+            // Ulangi filter owner pada UPDATE untuk mencegah perubahan identitas
+            // antara pembacaan record dan penulisan.
+            .in('no_wa', candidates)
+            .select(CUSTOMER_UPDATE_COLUMNS)
             .single();
 
         if (updateErr || !updatedUser) {
@@ -291,7 +503,7 @@ if (hasPayloadPhone) {
 
         return NextResponse.json({
             success: true,
-            user: updatedUser,
+            user: toCustomerUpdateDto(updatedUser),
             wa_notified: waNotified,
             correlation_id: correlationId
         });
