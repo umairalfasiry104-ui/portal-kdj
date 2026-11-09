@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 // Komponen Logo Header Navbar (Auto-crop ruang kosong putih agar tampil besar & proporsional)
 function KDJLogoHeader() {
     return (
-        <a href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
+        <Link href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
             <img
                 src="/logo-kdj-panjang.png"
                 alt="Kuliah di Jordan"
                 className="w-full h-auto object-cover scale-125"
             />
-        </a>
+        </Link>
     );
 }
 
@@ -68,6 +69,9 @@ export default function PortalKDJ() {
     const [uploadedDocs, setUploadedDocs] = useState({});
     const [buktiBayarUrl, setBuktiBayarUrl] = useState('');
     const [isUnlockedManually, setIsUnlockedManually] = useState(false);
+    const [followupConsent, setFollowupConsent] = useState(false);
+    const [savingFollowupConsent, setSavingFollowupConsent] = useState(false);
+    const [followupConsentMessage, setFollowupConsentMessage] = useState('');
 
     const [formData, setFormData] = useState({
         nama_lengkap: '',
@@ -82,47 +86,34 @@ export default function PortalKDJ() {
         pilihan_jurusan: 'Syariah / Ushuluddin'
     });
 
-    useEffect(() => {
-        const savedUser = localStorage.getItem('kdj_user');
-        if (savedUser) {
-            try {
-                const parsed = JSON.parse(savedUser);
-                setUser(parsed);
-                setBuktiBayarUrl(parsed.bukti_bayar_url || '');
-                setFormData({
-                    nama_lengkap: parsed.nama_lengkap || '',
-                    tempat_lahir: parsed.tempat_lahir || '',
-                    tanggal_lahir: parsed.tanggal_lahir || '',
-                    jenis_kelamin: parsed.jenis_kelamin || 'Laki-laki',
-                    no_paspor: parsed.no_paspor || '',
-                    alamat_lengkap: parsed.alamat_lengkap || '',
-                    asal_sekolah: parsed.asal_sekolah || '',
-                    tahun_lulus: parsed.tahun_lulus || '',
-                    pilihan_kampus: parsed.pilihan_kampus || 'University of Jordan',
-                    pilihan_jurusan: parsed.pilihan_jurusan || 'Syariah / Ushuluddin'
-                });
-                if (parsed.no_wa) {
-                    fetchUploadedDocs(parsed.no_wa);
-                }
-            } catch (e) {
-                console.error('Gagal membaca sesi user:', e);
-                localStorage.removeItem('kdj_user');
-            }
-        }
-    }, []);
-
     const fetchUploadedDocs = async (userPhone) => {
-        try {
-            const res = await fetch(`/api/upload-dokumen?no_wa=${userPhone}`);
-            const data = await res.json();
-            if (data.success) {
-                if (data.documents) {
-                    const mapDocs = {};
-                    data.documents.forEach((d) => {
-                        mapDocs[d.jenis_dokumen] = d;
-                    });
-                    setUploadedDocs(mapDocs);
-                }
+    try {
+      const res = await fetch(`/api/upload-dokumen?no_wa=${encodeURIComponent(userPhone)}`);
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('kdj_user');
+        setUser(null);
+        setFollowupConsent(false);
+        setFollowupConsentMessage('');
+        setAuthStep(1);
+        return;
+      }
+
+      // Amankan pembacaan JSON dengan .catch() agar tidak crash jika server error 500
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        console.error('Server mengembalikan respons kosong atau error.');
+        return;
+      }
+
+      if (data.success) {
+        if (data.documents) {
+          const mapDocs = {};
+          data.documents.forEach((d) => {
+            mapDocs[d.jenis_dokumen] = d;
+          });
+          setUploadedDocs(mapDocs);
+        }
+        // ... sisa kode selanjutnya ...
                 // Sinkronkan status terbaru pendaftar dari database
                 if (data.pendaftar) {
                     setBuktiBayarUrl(data.pendaftar.bukti_bayar_url || '');
@@ -154,6 +145,87 @@ export default function PortalKDJ() {
             }
         } catch (err) {
             console.error('Gagal memuat dokumen:', err);
+        }
+    };
+
+    useEffect(() => {
+    const savedUser = localStorage.getItem('kdj_user');
+    if (!savedUser) return;
+
+    let parsed;
+
+    try {
+        parsed = JSON.parse(savedUser);
+    } catch (error) {
+        console.error('Gagal membaca sesi user:', error);
+        localStorage.removeItem('kdj_user');
+        return;
+    }
+
+    let cancelled = false;
+
+    queueMicrotask(() => {
+        if (cancelled) return;
+
+        setUser(parsed);
+        setBuktiBayarUrl(parsed.bukti_bayar_url || '');
+
+        setFormData({
+            nama_lengkap: parsed.nama_lengkap || '',
+            tempat_lahir: parsed.tempat_lahir || '',
+            tanggal_lahir: parsed.tanggal_lahir || '',
+            jenis_kelamin: parsed.jenis_kelamin || 'Laki-laki',
+            no_paspor: parsed.no_paspor || '',
+            alamat_lengkap: parsed.alamat_lengkap || '',
+            asal_sekolah: parsed.asal_sekolah || '',
+            tahun_lulus: parsed.tahun_lulus || '',
+            pilihan_kampus: parsed.pilihan_kampus || 'University of Jordan',
+            pilihan_jurusan: parsed.pilihan_jurusan || 'Syariah / Ushuluddin'
+        });
+
+        if (parsed.no_wa) {
+            void fetchUploadedDocs(parsed.no_wa);
+        }
+    });
+
+    return () => {
+        cancelled = true;
+    };
+}, []);
+
+    useEffect(() => {
+        if (!user?.no_wa) return;
+
+        let active = true;
+        fetch('/api/followups/consent', { cache: 'no-store' })
+            .then((response) => response.json().catch(() => null))
+            .then((result) => {
+                if (active && result?.success) setFollowupConsent(result.consented === true);
+            })
+            .catch(() => {});
+
+        return () => { active = false; };
+    }, [user?.no_wa]);
+
+    const handleFollowupConsentChange = async (nextValue) => {
+        setSavingFollowupConsent(true);
+        setFollowupConsentMessage('');
+        try {
+            const response = await fetch('/api/followups/consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consented: nextValue })
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || 'Persetujuan belum dapat disimpan.');
+            }
+            setFollowupConsent(nextValue);
+            setFollowupConsentMessage(result.message || 'Pengaturan persetujuan tersimpan.');
+        } catch (error) {
+            setFollowupConsentMessage(error.message || 'Persetujuan belum dapat disimpan.');
+        } finally {
+            setSavingFollowupConsent(false);
         }
     };
 
@@ -265,6 +337,7 @@ export default function PortalKDJ() {
                     is_revision: isRevision
                 })
             });
+
             const data = await res.json();
             if (data.success) {
                 // Jangan kunci status pendaftaran jika baru simpan per-step (belum Final Submit)
@@ -282,16 +355,23 @@ export default function PortalKDJ() {
                 setUser(updatedUser);
                 localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
 
-                if (nextStep) {
-                    setWizardStep(nextStep);
-                } else {
-                    setIsUnlockedManually(false);
-                    alert(
-                        isRevision
-                            ? '🔄 Perbaikan berkas berhasil dikirim ulang! Tim Admin akan segera memeriksa kembali.'
-                            : '🎉 Pendaftaran & Bukti Pembayaran selesai dikirim! Notifikasi konfirmasi telah dikirim ke WhatsApp Anda.'
-                    );
-                }
+
+if (nextStep) {
+    setWizardStep(nextStep);
+} else {
+    setIsUnlockedManually(false);
+
+    const notifInfo = data.wa_notified
+        ? 'Notifikasi konfirmasi telah dikirim ke WhatsApp Anda.'
+        : 'Data Anda telah tercatat di sistem (notifikasi WhatsApp sedang dalam antrean).';
+
+    alert(
+        isRevision
+            ? `Perbaikan berkas berhasil dikirim ulang! ${notifInfo}`
+            : `Pendaftaran & Bukti Pembayaran selesai dikirim! ${notifInfo}`
+    );
+}
+
             } else {
                 alert('❌ Gagal menyimpan: ' + data.message);
             }
@@ -349,9 +429,14 @@ export default function PortalKDJ() {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/verify-otp', { method: 'DELETE' });
+        } catch {}
         localStorage.removeItem('kdj_user');
         setUser(null);
+        setFollowupConsent(false);
+        setFollowupConsentMessage('');
         setOtp('');
         setAuthStep(1);
     };
@@ -400,7 +485,7 @@ export default function PortalKDJ() {
 
                 <div className="max-w-6xl mx-auto px-6 -mt-14 grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
                     <div className="lg:col-span-3 bg-white rounded-2xl shadow-md border-t-4 border-amber-400 p-8">
-                        
+
                         {/* BANNER STATUS & CATATAN ADMIN */}
                         {isRejected && (
                             <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-600 rounded-r-xl shadow-sm">
@@ -665,6 +750,24 @@ export default function PortalKDJ() {
                                     </div>
                                 </div>
 
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={followupConsent}
+                                            disabled={savingFollowupConsent}
+                                            onChange={(event) => void handleFollowupConsentChange(event.target.checked)}
+                                            className="mt-0.5 h-4 w-4 accent-[#06315b]"
+                                        />
+                                        <span className="text-xs leading-relaxed text-slate-700">
+                                            Saya bersedia menerima pesan tindak lanjut terkait pertanyaan, konsultasi, atau proses pendaftaran KDJ melalui WhatsApp. Saya dapat menarik persetujuan kapan saja.
+                                            <span className="block text-[10px] text-slate-500 mt-1">Opsional. Tidak dicentang secara default dan tidak memengaruhi proses pendaftaran.</span>
+                                        </span>
+                                    </label>
+                                    {savingFollowupConsent && <p className="text-[10px] text-slate-500">Menyimpan persetujuan...</p>}
+                                    {followupConsentMessage && <p role="status" className="text-[10px] text-slate-600">{followupConsentMessage}</p>}
+                                </div>
+
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(1)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali
@@ -719,9 +822,9 @@ export default function PortalKDJ() {
                                                             }`}>
                                                                 Status: {uploaded.status_dokumen}
                                                             </span>
-                                                            <a href={uploaded.file_path} target="_blank" rel="noreferrer" className="text-xs text-[#06315b] font-semibold underline">
+                                                            <Link href={uploaded.file_path} target="_blank" rel="noreferrer" className="text-xs text-[#06315b] font-semibold underline">
                                                                 Lihat File
-                                                            </a>
+                                                            </Link>
                                                         </div>
                                                     ) : (
                                                         <p className="text-xs text-slate-400 mt-0.5">Belum ada file diunggah (PDF/JPG/PNG)</p>
@@ -825,9 +928,9 @@ export default function PortalKDJ() {
                                         {buktiBayarUrl ? (
                                             <div className="flex items-center gap-3 mt-1">
                                                 <span className="text-xs text-emerald-700 font-semibold">✅ Bukti Transfer Terunggah</span>
-                                                <a href={buktiBayarUrl} target="_blank" rel="noreferrer" className="text-xs text-[#06315b] font-semibold underline">
+                                                <Link href={buktiBayarUrl} target="_blank" rel="noreferrer" className="text-xs text-[#06315b] font-semibold underline">
                                                     Lihat Bukti Transfer
-                                                </a>
+                                                </Link>
                                             </div>
                                         ) : (
                                             <p className="text-xs text-slate-400 mt-0.5">Unggah struk / tangkapan layar bukti transfer (JPG/PNG/PDF, Maks. 5 MB)</p>
@@ -957,9 +1060,9 @@ export default function PortalKDJ() {
         <div className="min-h-screen flex flex-col bg-[#06315b]">
             <OfficialHeader
                 rightAction={
-                    <a href="/admin" className="text-xs text-amber-400 hover:underline font-semibold">
+                    <Link href="/admin" className="text-xs text-amber-400 hover:underline font-semibold">
                         Login Admin &rarr;
-                    </a>
+                    </Link>
                 }
             />
 
@@ -1000,7 +1103,7 @@ export default function PortalKDJ() {
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Contoh: 085156203449"
+                                    placeholder="Contoh: 0851xxxxxxxx"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
                                     className="w-full px-4 py-3 bg-slate-50 text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-[#06315b]"

@@ -1,94 +1,301 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import {
+  getSupabaseAdmin,
+  checkRateLimit,
+  checkOtpBruteForce,
+  recordOtpFailure,
+  clearOtpFailures,
+  verifyAdminPassword,
+  setAdminSessionCookie,
+  clearSessionCookie,
+  ADMIN_COOKIE_NAME,
+  isCanonicalAdminRole,
+  requireAdminPermission
+} from '@/lib/security';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const DISABLED_PORTAL_LIFECYCLE_ACTIONS = new Set([
+  'add_admin',
+  'disable_admin',
+  'replace_admin',
+  'delete_admin'
+]);
 
-// 1. Cek apakah nomor terdaftar sebagai Admin (sebelum/sesudah OTP)
-export async function POST(req) {
-    try {
-        const { action, phone, otp, new_admin_phone, new_admin_name, new_admin_role } = await req.json();
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,64}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        // Aksi A: Cek nomor sebelum kirim OTP Admin
-        if (action === 'check_admin') {
-            const { data: admin } = await supabase
-                .from('admins')
-                .select('*')
-                .eq('no_wa', phone)
-                .single();
+function normalizeAdminIdentifier(rawIdentifier) {
+  if (typeof rawIdentifier !== 'string') return null;
+  const trimmed = rawIdentifier.trim().toLowerCase();
+  if (!trimmed || trimmed.length > 254) return null;
 
-            if (!admin) {
-                return NextResponse.json({ 
-                    success: false, 
-                    message: 'Akses Ditolak! Nomor WA ini tidak terdaftar sebagai Admin.' 
-                }, { status: 403 });
-            }
-            return NextResponse.json({ success: true, admin });
-        }
+  if (trimmed.includes('@')) {
+    return EMAIL_PATTERN.test(trimmed)
+      ? { type: 'email', value: trimmed }
+      : null;
+  }
 
-        // Aksi B: Verifikasi OTP Login Admin
-        if (action === 'verify_admin_otp') {
-            const { data: validOtp } = await supabase
-                .from('otp_auth')
-                .select('*')
-                .eq('no_wa', phone)
-                .eq('kode_otp', otp)
-                .eq('is_used', false)
-                .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-
-            if (!validOtp) {
-                return NextResponse.json({ success: false, message: 'Kode OTP salah atau kedaluwarsa!' }, { status: 400 });
-            }
-
-            await supabase.from('otp_auth').update({ is_used: true }).eq('id', validOtp.id);
-
-            const { data: admin } = await supabase
-                .from('admins')
-                .select('*')
-                .eq('no_wa', phone)
-                .single();
-
-            return NextResponse.json({ success: true, admin });
-        }
-
-        // Aksi C: Tambah Admin Baru dari Dashboard
-        if (action === 'add_admin') {
-            const { data, error } = await supabase
-                .from('admins')
-                .insert({
-                    no_wa: new_admin_phone,
-                    nama_admin: new_admin_name,
-                    role: new_admin_role || 'Admin Verifikator'
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            return NextResponse.json({ success: true, admin: data });
-        }
-
-        return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
-    } catch (error) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
-    }
+  return USERNAME_PATTERN.test(trimmed)
+    ? { type: 'username', value: trimmed }
+    : null;
 }
 
-// Ambil daftar seluruh admin
-export async function GET() {
-    try {
-        const { data: admins, error } = await supabase
-            .from('admins')
-            .select('*')
-            .order('created_at', { ascending: true });
+function toAdminDirectoryItem(admin) {
+  if (!admin) return null;
+  return {
+    id: admin.id,
+    username: admin.username || null,
+    email: admin.email || null,
+    no_wa: admin.no_wa || null,
+    nama_admin: admin.nama_admin,
+    role: admin.role,
+    is_active: admin.is_active,
+    created_at: admin.created_at,
+    disabled_at: admin.disabled_at ?? null
+  };
+}
 
-        if (error) throw error;
-        return NextResponse.json({ success: true, admins });
-    } catch (error) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+function toAdminSessionClientDto(admin) {
+  if (!admin) return null;
+  return {
+    id: admin.id,
+    username: admin.username || null,
+    email: admin.email || null,
+    no_wa: admin.no_wa || null,
+    nama_admin: admin.nama_admin,
+    role: admin.role,
+    is_active: admin.is_active
+  };
+}
+
+export async function POST(req) {
+  try {
+    const body = await req.json().catch(() => null);
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      typeof body.action !== 'string'
+    ) {
+      return NextResponse.json(
+        { success: false, message: 'Aksi atau payload tidak valid.' },
+        { status: 400 }
+      );
     }
+
+    const { action } = body;
+
+    if (DISABLED_PORTAL_LIFECYCLE_ACTIONS.has(action)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'ADMIN_LIFECYCLE_SUPABASE_ONLY',
+          message: 'Pengelolaan akun Admin hanya dapat dilakukan melalui Supabase.'
+        },
+        { status: 403 }
+      );
+    }
+
+    if (action === 'logout') {
+      const response = NextResponse.json({
+        success: true,
+        message: 'Logout berhasil.'
+      });
+      clearSessionCookie(response, ADMIN_COOKIE_NAME);
+      return response;
+    }
+
+    if (action === 'check_admin' || action === 'verify_admin_otp') {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'ADMIN_OTP_DEPRECATED',
+          message: 'Login Admin kini menggunakan Username/Email dan Password.'
+        },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'login_admin') {
+      const clientIp =
+        req.headers.get('x-real-ip')?.trim() ||
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        'unknown';
+
+      const ipRateCheck = checkRateLimit(
+        `login-admin:ip:${clientIp}`,
+        20,
+        10 * 60 * 1000
+      );
+
+      if (!ipRateCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Terlalu banyak percobaan login. Silakan coba lagi nanti.'
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(ipRateCheck.retryAfterSec)
+            }
+          }
+        );
+      }
+
+      const parsedIdentifier = normalizeAdminIdentifier(
+        body.identifier ?? body.username ?? body.email
+      );
+      const rawPassword = typeof body.password === 'string' ? body.password : '';
+
+      if (!parsedIdentifier || !rawPassword || rawPassword.length > 200) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Username/Email dan Password wajib diisi dengan format yang valid.'
+          },
+          { status: 400 }
+        );
+      }
+
+      const lockKey = `admin-pwd:${parsedIdentifier.value}`;
+      const bruteCheck = checkOtpBruteForce(lockKey, 5, 10 * 60 * 1000);
+
+      if (bruteCheck.locked) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Terlalu banyak percobaan password salah. Silakan tunggu ${bruteCheck.retryAfterSec} detik.`
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(bruteCheck.retryAfterSec)
+            }
+          }
+        );
+      }
+
+      const supabase = getSupabaseAdmin();
+      let adminQuery = supabase
+        .from('admins')
+        .select(
+          'id, username, email, no_wa, nama_admin, role, password_hash, created_at, is_active, session_version'
+        );
+
+      if (parsedIdentifier.type === 'email') {
+        adminQuery = adminQuery.ilike('email', parsedIdentifier.value);
+      } else {
+        adminQuery = adminQuery.ilike('username', parsedIdentifier.value);
+      }
+
+      const { data: admin, error: adminQueryError } = await adminQuery.maybeSingle();
+
+      if (adminQueryError) {
+        console.error('[-] Gagal memeriksa akun Admin:', adminQueryError.message);
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Tidak dapat memverifikasi akses Admin saat ini.'
+          },
+          { status: 500 }
+        );
+      }
+
+      const isPasswordValid =
+        admin &&
+        typeof admin.password_hash === 'string' &&
+        verifyAdminPassword(rawPassword, admin.password_hash);
+
+      if (!admin || !isPasswordValid) {
+        recordOtpFailure(lockKey, 5, 10 * 60 * 1000);
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Username/Email atau Password salah.'
+          },
+          { status: 401 }
+        );
+      }
+
+      if (admin.is_active !== true) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Akun Admin sudah dinonaktifkan.'
+          },
+          { status: 403 }
+        );
+      }
+
+      if (!isCanonicalAdminRole(admin.role)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Role akun Admin tidak valid. Akses ditolak.'
+          },
+          { status: 403 }
+        );
+      }
+
+      const sessionVersion = Number(admin.session_version);
+      if (!Number.isSafeInteger(sessionVersion) || sessionVersion < 1) {
+        console.error('[-] session_version Admin tidak valid:', admin.id);
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Konfigurasi sesi Admin tidak valid.'
+          },
+          { status: 500 }
+        );
+      }
+
+      clearOtpFailures(lockKey);
+
+      const response = NextResponse.json({
+        success: true,
+        admin: toAdminSessionClientDto(admin)
+      });
+      setAdminSessionCookie(response, admin);
+      return response;
+    }
+
+    return NextResponse.json(
+      { success: false, message: 'Aksi tidak dikenal.' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('[-] Error /api/admin/auth POST:', error.message);
+    return NextResponse.json(
+      { success: false, message: 'Terjadi kesalahan internal pada server.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req) {
+  try {
+    const authCheck = await requireAdminPermission(req, 'admin.directory.read');
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data: admins, error } = await supabase
+      .from('admins')
+      .select('id, username, email, no_wa, nama_admin, role, is_active, created_at, disabled_at')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      admins: (admins || []).map(toAdminDirectoryItem)
+    });
+  } catch (error) {
+    console.error('[-] Error /api/admin/auth GET:', error.message);
+    return NextResponse.json(
+      { success: false, message: 'Gagal memuat daftar Admin.' },
+      { status: 500 }
+    );
+  }
 }

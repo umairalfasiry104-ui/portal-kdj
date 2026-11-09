@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:qualification": "node scripts/test-lead-qualification-contract.mjs && node scripts/test-followup-idle-final-contract.mjs",
+    "test:daily-report": "node scripts/test-daily-reporting-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
@@ -19,5 +21,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }
