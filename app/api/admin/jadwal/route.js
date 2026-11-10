@@ -5,6 +5,7 @@ import {
     callWaBotApi,
     normalizePhoneLocal
 } from '@/lib/security';
+import { createAdminBookingAttestation } from '@/lib/admin-booking-attestation.mjs';
 
 const ALLOWED_JADWAL_STATUS = ['Terjadwal', 'Selesai', 'Batal'];
 const UUID_PATTERN =
@@ -66,11 +67,17 @@ function getRpcHttpStatus(code) {
         case 'SLOT_UNAVAILABLE':
         case 'IDEMPOTENCY_KEY_REUSED':
             return 409;
+        case 'ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED':
+        case 'INVALID_ADMIN_ATTESTATION':
+            return 403;
+        case 'ATTESTATION_EXPIRED':
+            return 409;
         case 'INVALID_PHONE':
         case 'INVALID_NAME':
         case 'INVALID_DATETIME':
         case 'INVALID_METHOD':
         case 'INVALID_IDEMPOTENCY_KEY':
+        case 'INVALID_ADMIN_BOOKING_REQUEST':
             return 400;
         case 'BOOKING_REQUIRES_PREVIOUS_DAY':
             return 422;
@@ -301,20 +308,41 @@ export async function POST(req) {
                 );
             }
 
-            const { data: rpcResult, error: rpcError } = await supabase.rpc('kdj_create_booking', {
-                p_no_wa: cleanPhone,
-                p_nama_leads: cleanName,
-                p_metode: requestedMethod,
-                p_jadwal_pilihan: normalizedSchedule,
-                p_idempotency_key: idempotencyKey
-            });
+            let attestation;
+            try {
+                attestation = createAdminBookingAttestation({
+                    admin: authCheck.admin,
+                    noWa: cleanPhone,
+                    customerName: cleanName,
+                    method: requestedMethod,
+                    schedule: normalizedSchedule,
+                    idempotencyKey
+                });
+            } catch (attestationError) {
+                if (attestationError?.code === 'ADMIN_BOOKING_ATTESTATION_NOT_CONFIGURED') {
+                    return NextResponse.json(
+                        {
+                            success: false,
+                            code: 'ADMIN_BOOKING_ATTESTATION_NOT_CONFIGURED',
+                            message: 'Jalur booking Admin belum dikonfigurasi di server. Hubungi operator sistem.'
+                        },
+                        { status: 503 }
+                    );
+                }
+                throw attestationError;
+            }
+
+            const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                'kdj_admin_create_booking_attested',
+                attestation
+            );
 
             if (rpcError) {
-                console.error('[-] RPC kdj_create_booking untuk admin gagal:', rpcError.code, rpcError.message);
+                console.error('[-] RPC kdj_admin_create_booking_attested untuk admin gagal:', rpcError.code, rpcError.message);
                 throw rpcError;
             }
             if (!rpcResult || typeof rpcResult !== 'object') {
-                throw new Error('RPC kdj_create_booking mengembalikan respons yang tidak valid.');
+                throw new Error('RPC kdj_admin_create_booking_attested mengembalikan respons yang tidak valid.');
             }
             if (rpcResult.ok !== true) {
                 const code = rpcResult.code || 'BOOKING_CREATE_FAILED';
