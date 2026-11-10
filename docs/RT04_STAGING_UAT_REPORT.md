@@ -173,7 +173,7 @@ Final global Outbox counts after the send:
 - `FAILED`: 1 (Jihad synthetic-recipient quarantine)
 - `PENDING / PROCESSING / UNKNOWN`: 0
 
-The provider-send and database-acknowledgement path is **PASS**. This does not independently prove handset delivery or read receipt; operator confirmation that the message appeared on the destination WhatsApp remains pending. The local Bot process was stopped gracefully immediately after the successful outbound acknowledgement to prevent unattended live-inbox processing; it can be restarted for the next explicitly coordinated inbound UAT.
+The provider-send and database-acknowledgement path is **PASS**. The operator subsequently confirmed that the booking confirmation message appeared in the destination WhatsApp, so handset receipt is **MANUALLY CONFIRMED**. No read receipt / blue-tick evidence is claimed. The local Bot process was stopped after the successful outbound acknowledgement to prevent unattended live-inbox processing; it can be restarted for the next explicitly coordinated inbound UAT.
 
 ### Remaining live-chat scope
 
@@ -192,7 +192,7 @@ Runtime evidence note: the Bot was run from the local worktree at HEAD `8023fb0`
 - Admin positive Staging UAT (CREATE, durable audit, exact replay, cancel, Outbox quarantine): PASS.
 - Admin negative Staging tests (tampered signature, altered payload/nonce replay, idempotency key reuse, stale session): PASS.
 - Inactive Admin Staging test: PASS (transactionally disabled only during the RPC check; restored active before commit; post-run actor state and absence of booking/audit verified).
-- Portal Admin login/manual booking and real WhatsApp outbound provider-send to a team-controlled test phone: PASS (Portal → Staging Outbox → Bot → WhatsApp provider; provider message ID and DB SENT acknowledgement verified). Handset receipt/read confirmation remains pending; inbound AI conversation, real customer approval, replay, and cancellation UAT remain PENDING.
+- Portal Admin login/manual booking and real WhatsApp outbound send to a team-controlled test phone: PASS (Portal → Staging Outbox → Bot → WhatsApp provider; provider message ID and DB SENT acknowledgement verified; operator manually confirmed the message appeared on the handset). Read receipt is not asserted. Inbound AI conversation, real customer approval, replay, and cancellation UAT remain PENDING.
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
