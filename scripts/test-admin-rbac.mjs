@@ -37,7 +37,9 @@ assert.doesNotMatch(uploadRoute, /\['Super Admin', 'Admin Verifikator'\]\.includ
 const scheduleRoute = read('app/api/admin/jadwal/route.js');
 assert.match(scheduleRoute, /requireAdminPermission\(req, 'booking\.read'\)/);
 assert.match(scheduleRoute, /requireAdminPermission\(req, requiredPermission\)/);
-assert.match(scheduleRoute, /supabase\.rpc\('kdj_create_booking'/);
+assert.match(scheduleRoute, /supabase\.rpc\(\s*'kdj_admin_create_booking_attested'/);
+assert.doesNotMatch(scheduleRoute, /supabase\.rpc\('kdj_create_booking'/);
+assert.match(scheduleRoute, /createAdminBookingAttestation\(/);
 assert.doesNotMatch(scheduleRoute, /\.from\(['"]jadwal_konsultasi['"]\)[\s\S]{0,300}\.insert\(/);
 
 const retryRoute = read('app/api/admin/jadwal/notifications/retry/route.js');
@@ -54,5 +56,5 @@ assert.match(adminPage, /manualBookingRequest\?\.fingerprint === requestFingerpr
 console.log('[PASS] Three-role RBAC: payment authority is Super Admin-only.');
 console.log('[PASS] Verifikator is limited to academic verification.');
 console.log('[PASS] Konsultan has booking control but cannot resolve UNKNOWN Outbox.');
-console.log('[PASS] Manual booking creation uses the transactional kdj_create_booking RPC.');
+console.log('[PASS] Manual Admin booking uses the HMAC-attested transactional database wrapper.');
 console.log('[PASS] Portal UI and API enforce the same permission boundaries.');

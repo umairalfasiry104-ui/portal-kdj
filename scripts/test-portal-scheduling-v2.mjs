@@ -49,7 +49,8 @@ assert.doesNotMatch(routeSource, /kdj_update_booking_notification/);
 assert.doesNotMatch(routeSource, /export const runtime/);
 assert.doesNotMatch(routeSource, /\.from\(['"]jadwal_konsultasi['"]\)[\s\S]{0,300}\.update\(/);
 assert.doesNotMatch(routeSource, /\.from\(['"]jadwal_konsultasi['"]\)[\s\S]{0,300}\.insert\(/);
-assert.match(routeSource, /supabase\.rpc\('kdj_create_booking'/);
+assert.match(routeSource, /supabase\.rpc\(\s*'kdj_admin_create_booking_attested'/);
+assert.doesNotMatch(routeSource, /supabase\.rpc\('kdj_create_booking'/);
 assert.match(pageSource, /x-idempotency-key/);
 assert.match(retrySource, /requireAdminPermission\(req, requiredPermission\)/);
 assert.match(retrySource, /booking\.outbox\.resolve_unknown/);
@@ -85,10 +86,11 @@ assert.doesNotMatch(pageSource, /new Date\(j\.jadwal_pilihan\)\.toLocaleString/)
 const routeModuleSource = routeSource
     .replace(/^import \{ NextResponse \} from 'next\/server';\r?\n/m, '')
     .replace(/^import \{[\s\S]*?\} from '@\/lib\/security';\r?\n/m, '')
+    .replace(/^import \{ createAdminBookingAttestation \} from '@\/lib\/admin-booking-attestation\.mjs';\r?\n/m, '')
     .replaceAll('export async function GET', 'async function GET')
     .replaceAll('export async function POST', 'async function POST');
 const buildRouteModule = new Function(
-    'NextResponse', 'getSupabaseAdmin', 'requireAdminPermission', 'callWaBotApi', 'normalizePhoneLocal', 'console',
+    'NextResponse', 'getSupabaseAdmin', 'requireAdminPermission', 'callWaBotApi', 'normalizePhoneLocal', 'createAdminBookingAttestation', 'console',
     `${routeModuleSource}\nreturn { GET, POST };`
 );
 function makeRequest(body) { return { json: async () => body }; }
@@ -171,6 +173,7 @@ function createGetRuntime({
         async () => ({ authorized: true }),
         async () => ({ ok: true }),
         (phone) => String(phone || '').replace(/[^0-9]/g, '').replace(/^62/, '0'),
+        () => { throw new Error('Unexpected Admin CREATE during GET contract tests.'); },
         { error() {}, warn() {} }
     );
 
@@ -206,6 +209,7 @@ function createMockRuntime({ adminRpcResult, wakeThrows = false, wakeResult = { 
             return wakeResult;
         },
         (phone) => String(phone || '').replace(/[^0-9]/g, '').replace(/^62/, '0'),
+        () => { throw new Error('Unexpected Admin CREATE during GET contract tests.'); },
         { error() {}, warn() {} }
     );
     return { routeModule, rpcCalls, botCalls };
