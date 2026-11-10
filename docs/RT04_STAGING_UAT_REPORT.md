@@ -70,34 +70,52 @@ After applying `20261110014506`:
 - Admin attested and RT-04 service RPCs remain executable by service_role.
 - RT-04 recovery proof after cutover returns `NO_PENDING_APPROVAL` for an unused test identity, proving the Bot HMAC signature still passes.
 
-## Admin Booking UAT — BLOCKED
+## Admin Booking UAT — PASS (positive path)
 
-Portal/Admin positive Staging UAT is blocked only by key mismatch:
+**Target:** Supabase Staging `pgmdurnylyuqkikbwwwy` / `kdj-staging-v6`
 
-- Local Portal `.env.local` has a valid 32-byte `KDJ_ADMIN_BOOKING_HMAC_KEY`.
-- Staging has one active `admin-v1` key row.
-- Signing with the local Portal key is rejected by Staging as `INVALID_ADMIN_ATTESTATION`.
-- No Admin booking or Admin audit row was created.
-- The bootstrap RPC is currently postgres-only; service_role cannot invoke it.
+**Key proof:** PASS. The Portal-generated HMAC was accepted; a synthetic unknown Admin identity was rejected as `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, proving the local Portal key matches the active Staging `admin-v1` key. No key material was exposed in logs or this report.
 
-Required operator action:
-1. In Supabase Dashboard, select the KDJ Staging project and open SQL Editor.
-2. Run the one-time reconciliation transaction from `docs/RT04_STAGING_ADMIN_KEY_SYNC.md`, using the current local `KDJ_ADMIN_BOOKING_HMAC_KEY` from Portal `.env.local` (paste it locally; never send the secret in chat).
-3. Confirm the result code is `KEY_PROVISIONED` and key metadata shows `admin-v1 / ACTIVE / 32 bytes`.
-4. Report only the result code and metadata row.
+Positive UAT was executed through `public.kdj_admin_create_booking_attested` with an active DB Admin:
 
-After key sync, rerun:
-- HMAC proof using a non-existent Admin ID (must return `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, proving the signature now matches).
-- Positive Admin UAT with an active authorized DB Admin, unique UAT lead, durable Admin audit row, and Scheduling V2 Outbox row.
-- Exact replay, altered-payload replay, tampered signature, inactive Admin and stale session_version negative tests.
-- Cancel the UAT booking and supersede its synthetic Outbox events; no live WhatsApp sends.
+| Field | Verified value |
+|---|---|
+| Actor username | `konsultan` |
+| Actor role | `Admin Konsultan` |
+| Actor session_version | `1` |
+| Action / audit outcome | `CREATE / BOOKING_CREATED` |
+| Audit ID | `8c19999c-284e-4175-9b9c-073097f4258b` |
+| Booking ID | `0b7b6912-1cce-49c9-9e0f-f861ab1b4008` |
+| Synthetic lead | `KDJ UAT Admin RT04 20261110` |
+| Synthetic phone | `080000000001` |
+| Method / schedule | `Zoom / 2026-11-12 10:00 WIB` |
+
+Assertions completed successfully inside the SQL UAT block:
+- CREATE returned `BOOKING_CREATED`.
+- Exact replay returned `IDEMPOTENT_REPLAY` for the same booking; it did not create duplicate booking, audit, or Outbox rows.
+- Admin cancellation returned `BOOKING_UPDATED`; final booking status is `Batal`.
+- Exactly one matching durable Admin CREATE audit row exists for the actor and booking.
+
+Read-only post-UAT verification returned:
+- Booking rows: 1; final status: `Batal`.
+- Matching Admin CREATE audit rows: 1.
+- Outbox rows: 2 (one `BOOKING_CREATED`, one `BOOKING_CANCELLED`); both `SUPERSEDED`.
+- Dispatchable/uncertain Outbox rows: 0.
+- Outbox rows with `provider_message_id`: 0.
+- Outbox rows with active `locked_at` / `claim_token`: 0.
+
+The test used a synthetic recipient and SQL-only database operations; no WhatsApp provider was invoked. The legacy `jadwal_konsultasi.notification_status` mirror remains `PENDING`, but the authoritative Outbox rows are both `SUPERSEDED`; no dispatchable event or claim remains.
+
+**Remaining Staging negative cases:** altered-payload/idempotency mismatch, tampered signature, inactive Admin, stale `session_version`, and authorization-boundary checks. Local integration coverage exists, but these are not yet marked as separately executed against Staging.
 
 ## Current gate summary
 
 - RT-04 Bot Staging RPC/HMAC/UAT: PASS (synthetic provider; no live WhatsApp send).
 - Staging legacy bypass revoke: PASS.
 - Admin attested lane schema/security/local integration: PASS.
-- Admin key proof / positive Admin UAT: BLOCKED pending operator key sync.
+- Admin key synchronization proof: PASS.
+- Admin positive Staging UAT (CREATE, durable audit, exact replay, cancel, Outbox quarantine): PASS.
+- Admin negative Staging cases: PENDING.
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
