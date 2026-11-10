@@ -123,7 +123,7 @@ Post-test read-only verification confirms:
 - Admin audit row count for the tested positive booking actor remains 1.
 - Global Outbox remains 3 `SENT` historical rows and 4 `SUPERSEDED` rows; no `PENDING`, `PROCESSING`, `FAILED`, or `UNKNOWN` rows.
 
-**Inactive Admin case — PENDING:** Staging currently has zero inactive Admin accounts. A controlled transactional test was prepared to temporarily set the existing test Admin inactive, invoke the attested RPC, assert `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, and restore `is_active = true` before commit. The database execution request was blocked by the execution safety gate, so this case was not run. No Admin status was changed. The local integration suite covers the inactive-admin branch.
+**Inactive Admin case — PASS:** No inactive Admin account existed in Staging, so a controlled single-transaction test temporarily set the dedicated test Admin row inactive, called the attested RPC with a fresh valid HMAC, asserted `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, and restored `is_active = true` before the transaction completed. The SQL block completed without exception. Post-run read-only verification confirmed the actor is active again with `session_version = 1`, and there are zero booking and zero Admin audit rows for the inactive-admin test payload. No lasting Admin account change or test booking was left behind.
 
 ## Portal and real WhatsApp end-to-end UAT
 
@@ -141,8 +141,8 @@ Post-test read-only verification confirms:
 - Admin key synchronization proof: PASS.
 - Admin positive Staging UAT (CREATE, durable audit, exact replay, cancel, Outbox quarantine): PASS.
 - Admin negative Staging tests (tampered signature, altered payload/nonce replay, idempotency key reuse, stale session): PASS.
-- Inactive Admin Staging test: PENDING (no inactive row; transactional test was not executed).
-- Portal + real WhatsApp end-to-end UAT: PENDING (controlled recipient and operator login/window required).
+- Inactive Admin Staging test: PASS (transactionally disabled only during the RPC check; restored active before commit; post-run actor state and absence of booking/audit verified).
+- Portal + real WhatsApp end-to-end UAT: PENDING (awaiting designated team-controlled test phone and operator-driven Admin login / coordinated Bot test window).
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
