@@ -22,7 +22,7 @@ The temporary service_role bootstrap window was closed. Both key rows exist in S
 - Bot: `rt04-v1`
 - Admin: `admin-v1`
 
-The Bot local key matches the Staging key store. The Portal Admin local key currently does **not** match the Admin key store; proof returned `INVALID_ADMIN_ATTESTATION`. The Admin audit table remains empty. No successful Admin booking test has been attempted.
+The Bot local key matches the Staging key store. The Portal Admin local key matches the active Staging `admin-v1` key. A validly signed request using a synthetic unknown Admin identity was rejected as `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, confirming that the HMAC was accepted while actor authorization was denied. The successful Admin CREATE/replay/cancel path and negative authorization tests are recorded below.
 
 ## RT-04 Bot customer approval UAT
 
@@ -121,17 +121,67 @@ Post-test read-only verification confirms:
 - Admin `konsultan` remains active with `session_version = 1`.
 - No booking was created by any negative test payload.
 - Admin audit row count for the tested positive booking actor remains 1.
-- Global Outbox remains 3 `SENT` historical rows and 4 `SUPERSEDED` rows; no `PENDING`, `PROCESSING`, `FAILED`, or `UNKNOWN` rows.
+- At the time of the negative Admin test run (before the subsequent live Portal UAT), global Outbox had 3 `SENT` historical rows and 4 `SUPERSEDED` rows; no `PENDING`, `PROCESSING`, `FAILED`, or `UNKNOWN` rows.
 
 **Inactive Admin case — PASS:** No inactive Admin account existed in Staging, so a controlled single-transaction test temporarily set the dedicated test Admin row inactive, called the attested RPC with a fresh valid HMAC, asserted `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, and restored `is_active = true` before the transaction completed. The SQL block completed without exception. Post-run read-only verification confirmed the actor is active again with `session_version = 1`, and there are zero booking and zero Admin audit rows for the inactive-admin test payload. No lasting Admin account change or test booking was left behind.
 
-## Portal and real WhatsApp end-to-end UAT
+## Portal and real WhatsApp end-to-end UAT — outbound provider send PASS
 
-- Local Portal dev server started on `http://127.0.0.1:3100`, bound to localhost only.
-- Portal health endpoint returned `success=true / status=OK`; local `NEXT_PUBLIC_SUPABASE_URL` resolves to KDJ Staging `pgmdurnylyuqkikbwwwy`.
-- Local WhatsApp Web LocalAuth profile exists at `.wwebjs_auth/session-kdj-bot`; no Bot process was running at inspection time.
-- Bot startup automatically attempts to process one Staging Outbox event after WhatsApp becomes ready. Current Outbox has no dispatchable events, but starting the Bot would also connect its live WhatsApp inbox.
-- No live WhatsApp message was sent. Actual Portal login/booking and real WhatsApp send/approval/cancel remain **PENDING** until a team-controlled UAT phone is designated and the live Bot window is explicitly coordinated. Do not use a customer number.
+**Test date:** 2026-11-10 (Asia/Jakarta)
+**Portal:** local Next.js dev server at `http://127.0.0.1:3100`, localhost only
+**Supabase:** Staging `pgmdurnylyuqkikbwwwy` / `kdj-staging-v6`
+**Bot:** local branch `feature/kdj-wa-bot-work-20261109`, HEAD `8023fb0`
+
+### Portal login and manual booking
+
+The operator confirmed in Incognito that the Portal opened without repeated refresh, rendered normally, accepted Admin login, and displayed the manual booking form. The operator submitted two test bookings:
+
+| Lead | Booking ID | Recipient | Result |
+|---|---|---|---|
+| Jihad | `0d4acd03-fcb8-40a8-b006-6e672688b828` | Synthetic number ending `5678` | Booking created; notification deliberately quarantined |
+| Umair | `b780df55-cf42-4dcd-94f5-8d1c2a566af4` | Operator-controlled WhatsApp number ending `1604` | Booking created; real outbound message sent |
+
+Umair booking snapshot:
+- Status: `Terjadwal`
+- Method: `Zoom`
+- Schedule: 2026-11-13 15:00 WIB
+- Latest Outbox event: `6e53edd5-14c9-4521-8fff-2d7539d139e6` / `BOOKING_CREATED`
+
+### Synthetic-recipient quarantine
+
+Before starting the live Bot, the Jihad event was the oldest pending Outbox event. It was claimed and finished through the existing worker RPC pair, not by direct table DML:
+- Claim RPC: `kdj_claim_booking_notifications`
+- Finish RPC: `kdj_finish_booking_notification`, outcome `FAILED`
+- Final status: `FAILED`, attempts: 1, provider message ID: NULL
+- Recorded reason: synthetic recipient intentionally withheld before WhatsApp provider send; do not retry.
+
+The Jihad booking row remains `Terjadwal` in Staging and is test data; cancel it through the Admin Portal when convenient to release its schedule slot. Its current notification event is not dispatchable.
+
+### Real WhatsApp outbound send
+
+The local Bot was started with `npm start`. Its environment was verified to point to Staging, with the required credentials present and Chromium sandbox disablement set to false. Logs confirmed:
+- WhatsApp session authenticated and Bot reached `READY`.
+- WhatsApp Web runtime version: `2.3000.1053820627`.
+- The Bot resolved the Umair recipient and sent Outbox event `6e53edd5-14c9-4521-8fff-2d7539d139e6`.
+- WhatsApp `sendMessage` resolved; Outbox was acknowledged as `SENT`.
+- Booking mirror `jadwal_konsultasi.notification_status` also became `SENT`.
+- Attempts: 1; provider message ID present; `sent_at`: 2026-11-10 11:10:27 WIB; `last_error`: NULL.
+
+Final global Outbox counts after the send:
+- `SENT`: 4
+- `SUPERSEDED`: 4
+- `FAILED`: 1 (Jihad synthetic-recipient quarantine)
+- `PENDING / PROCESSING / UNKNOWN`: 0
+
+The provider-send and database-acknowledgement path is **PASS**. This does not independently prove handset delivery or read receipt; operator confirmation that the message appeared on the destination WhatsApp remains pending. The local Bot process was stopped gracefully immediately after the successful outbound acknowledgement to prevent unattended live-inbox processing; it can be restarted for the next explicitly coordinated inbound UAT.
+
+### Remaining live-chat scope
+
+- Inbound customer conversation and AI response: **PENDING**.
+- Customer booking consent via real WhatsApp (`SETUJU` / replay / `BATAL`): **PENDING**.
+- End-to-end inbound approval/cancellation with provider evidence: **PENDING**.
+
+Runtime evidence note: the Bot was run from the local worktree at HEAD `8023fb0`; before this UAT the worktree already contained one uncommitted `index.js` line passing `handleBookingApprovalMessage` into the message-handler registration. This UAT did not edit or commit Bot source. Portal worktree was also not clean before this UAT; no Portal source or dependency files were changed by this UAT. Production and Vercel were not touched.
 
 ## Current gate summary
 
@@ -142,7 +192,7 @@ Post-test read-only verification confirms:
 - Admin positive Staging UAT (CREATE, durable audit, exact replay, cancel, Outbox quarantine): PASS.
 - Admin negative Staging tests (tampered signature, altered payload/nonce replay, idempotency key reuse, stale session): PASS.
 - Inactive Admin Staging test: PASS (transactionally disabled only during the RPC check; restored active before commit; post-run actor state and absence of booking/audit verified).
-- Portal + real WhatsApp end-to-end UAT: PENDING (awaiting designated team-controlled test phone and operator-driven Admin login / coordinated Bot test window).
+- Portal Admin login/manual booking and real WhatsApp outbound provider-send to a team-controlled test phone: PASS (Portal → Staging Outbox → Bot → WhatsApp provider; provider message ID and DB SENT acknowledgement verified). Handset receipt/read confirmation remains pending; inbound AI conversation, real customer approval, replay, and cancellation UAT remain PENDING.
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
