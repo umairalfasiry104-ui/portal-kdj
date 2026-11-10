@@ -9,7 +9,7 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 const route = read('app/api/admin/jadwal/route.js');
 const helper = read('lib/admin-booking-attestation.mjs');
-const migration = read('supabase/migrations/20261110070000_kdj_admin_booking_attested_lane.sql');
+const migration = read('supabase/migrations/20261110005924_kdj_admin_booking_attested_lane.sql');
 
 assert.match(route, /requireAdminPermission\(req, requiredPermission\)/);
 assert.match(route, /admin:\s*authCheck\.admin/);
