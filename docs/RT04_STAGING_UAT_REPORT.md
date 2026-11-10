@@ -106,16 +106,43 @@ Read-only post-UAT verification returned:
 
 The test used a synthetic recipient and SQL-only database operations; no WhatsApp provider was invoked. The legacy `jadwal_konsultasi.notification_status` mirror remains `PENDING`, but the authoritative Outbox rows are both `SUPERSEDED`; no dispatchable event or claim remains.
 
-**Remaining Staging negative cases:** altered-payload/idempotency mismatch, tampered signature, inactive Admin, stale `session_version`, and authorization-boundary checks. Local integration coverage exists, but these are not yet marked as separately executed against Staging.
+## Admin Booking UAT — Staging negative tests
+
+Executed against `public.kdj_admin_create_booking_attested` through the Staging service_role RPC using fresh Portal-generated HMAC signatures, except the deliberately corrupted signature:
+
+| Case | Expected result | Actual result |
+|---|---|---|
+| Tampered signature | `INVALID_ADMIN_ATTESTATION` | PASS |
+| Changed payload with previously consumed nonce | `ATTESTATION_REPLAY_MISMATCH` | PASS |
+| Existing idempotency key reused with changed payload | `IDEMPOTENCY_KEY_REUSED` | PASS |
+| Valid HMAC but stale positive session_version | `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED` | PASS |
+
+Post-test read-only verification confirms:
+- Admin `konsultan` remains active with `session_version = 1`.
+- No booking was created by any negative test payload.
+- Admin audit row count for the tested positive booking actor remains 1.
+- Global Outbox remains 3 `SENT` historical rows and 4 `SUPERSEDED` rows; no `PENDING`, `PROCESSING`, `FAILED`, or `UNKNOWN` rows.
+
+**Inactive Admin case — PENDING:** Staging currently has zero inactive Admin accounts. A controlled transactional test was prepared to temporarily set the existing test Admin inactive, invoke the attested RPC, assert `ADMIN_SESSION_REVOKED_OR_UNAUTHORIZED`, and restore `is_active = true` before commit. The database execution request was blocked by the execution safety gate, so this case was not run. No Admin status was changed. The local integration suite covers the inactive-admin branch.
+
+## Portal and real WhatsApp end-to-end UAT
+
+- Local Portal dev server started on `http://127.0.0.1:3100`, bound to localhost only.
+- Portal health endpoint returned `success=true / status=OK`; local `NEXT_PUBLIC_SUPABASE_URL` resolves to KDJ Staging `pgmdurnylyuqkikbwwwy`.
+- Local WhatsApp Web LocalAuth profile exists at `.wwebjs_auth/session-kdj-bot`; no Bot process was running at inspection time.
+- Bot startup automatically attempts to process one Staging Outbox event after WhatsApp becomes ready. Current Outbox has no dispatchable events, but starting the Bot would also connect its live WhatsApp inbox.
+- No live WhatsApp message was sent. Actual Portal login/booking and real WhatsApp send/approval/cancel remain **PENDING** until a team-controlled UAT phone is designated and the live Bot window is explicitly coordinated. Do not use a customer number.
 
 ## Current gate summary
 
-- RT-04 Bot Staging RPC/HMAC/UAT: PASS (synthetic provider; no live WhatsApp send).
+- RT-04 Bot Staging RPC/HMAC and synthetic approval UAT: PASS (no live WhatsApp send).
 - Staging legacy bypass revoke: PASS.
 - Admin attested lane schema/security/local integration: PASS.
 - Admin key synchronization proof: PASS.
 - Admin positive Staging UAT (CREATE, durable audit, exact replay, cancel, Outbox quarantine): PASS.
-- Admin negative Staging cases: PENDING.
+- Admin negative Staging tests (tampered signature, altered payload/nonce replay, idempotency key reuse, stale session): PASS.
+- Inactive Admin Staging test: PENDING (no inactive row; transactional test was not executed).
+- Portal + real WhatsApp end-to-end UAT: PENDING (controlled recipient and operator login/window required).
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
