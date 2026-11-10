@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-11-10 (Asia/Jakarta)
 **Database in scope:** KDJ Staging `pgmdurnylyuqkikbwwwy`
-**Status:** CLOSED FOR KNOWN CURRENT STAGING PERIMETER
+**Status:** STAGING LEGACY BYPASS CLOSED; ONE VERCEL BOT ENDPOINT REMAINS UNVERIFIABLE
 **Future VPS:** Not provisioned yet, per owner; inventory again before first deployment
 **Production:** No Production database or deployment configuration changed
 
@@ -30,7 +30,8 @@ This conclusion is limited to the currently known infrastructure. The future VPS
 | Vercel Preview | Latest deployment `dpl_864kR317sePUaA7eYzTKzBgAkXoN`; branch `feature/kdj-portal-work-20261109`; commit `0f152f9` | Preview build exists due Git integration. It is not pointed to Staging; Vercel project env points to legacy Supabase `oudjeospzpiwkupfutow` | NOT A STAGING CALLER |
 | Vercel Production | Latest deployment `dpl_6qDELWXAtLiERSSp2YuwCxzVtgcf`; branch `main`; commit `b0769ee`; domain `pendaftaran.kuliahdijordan.com` | Existing Production deployment is outside the Staging caller perimeter. Its Supabase URL points to legacy project `oudjeospzpiwkupfutow` | NOT A STAGING CALLER |
 | Vercel Bot deployment | Enumerated all linked projects and deployments | No Bot-specific Vercel project/deployment exists | PASS |
-| Vercel environment variables | `filter_project_envs`, decrypt=false; only public `SUPABASE_URL` was read | `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` target Production/Preview/Development and resolve to `oudjeospzpiwkupfutow`. No `KDJ_ADMIN_BOOKING_HMAC_KEY` is configured in Vercel | RISK / OUTSIDE STAGING |
+| Vercel environment variables | `filter_project_envs`, decrypt=false; public `SUPABASE_URL` was read | `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` target Production/Preview/Development and resolve to `oudjeospzpiwkupfutow`. No `KDJ_ADMIN_BOOKING_HMAC_KEY` is configured in Vercel | RISK / OUTSIDE STAGING |
+| Vercel Bot API endpoint | `WA_BOT_API_URL` exists as a sensitive variable for Production/Preview/Development; `get_project_env` and `filter_project_envs(decrypt=true)` returned an empty value | Endpoint host cannot be confirmed from available Vercel metadata. Do not assume this is absent or points to localhost; owner must confirm the hostname only. | OPEN / NOT ATTRIBUTABLE |
 | Legacy Supabase project | `get_project(oudjeospzpiwkupfutow)` | Project name `portal pendaftaran kdj`, status `INACTIVE` | OWNER REVIEW REQUIRED BEFORE ANY VERCEL ENV CHANGE |
 | KDJ Staging project | `get_project(pgmdurnylyuqkikbwwwy)` | `kdj-staging-v6`, status `ACTIVE_HEALTHY`; local Staging Portal/Bot envs point here | PASS |
 | Supabase Edge Functions | List Edge Functions for Staging | No deployed Edge Function caller returned | PASS |

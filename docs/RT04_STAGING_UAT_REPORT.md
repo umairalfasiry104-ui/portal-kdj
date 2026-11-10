@@ -98,6 +98,6 @@ After key sync, rerun:
 - Staging legacy bypass revoke: PASS.
 - Admin attested lane schema/security/local integration: PASS.
 - Admin key proof / positive Admin UAT: BLOCKED pending operator key sync.
-- Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. No Vercel env change or deployment made.
+- Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
