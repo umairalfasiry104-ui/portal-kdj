@@ -28,7 +28,7 @@ const ALLOWED_STATUS_PEMBAYARAN = [
   'Lunas',
   'Ditolak'
 ];
-const ACADEMIC_DOC_TYPES = new Set(['pasfoto', 'paspor', 'ijazah', 'transkrip']);
+const ACADEMIC_DOC_TYPES = new Set(['pasfoto', 'paspor', 'ijazah', 'transkrip', 'akta_kelahiran']);
 const ALLOWED_DOC_STATUSES = new Set(['pending', 'approved', 'rejected']);
 
 function forbidden(message) {

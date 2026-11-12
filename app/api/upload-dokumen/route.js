@@ -10,7 +10,7 @@ import {
   createSignedStorageUrl
 } from '@/lib/security';
 
-const ALLOWED_DOC_TYPES = ['pasfoto', 'paspor', 'ijazah', 'transkrip', 'bukti_bayar'];
+const ALLOWED_DOC_TYPES = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran', 'bukti_bayar'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME_MAP = {
   'application/pdf': 'pdf',
@@ -297,7 +297,7 @@ export async function GET(req) {
     const canAccessAcademic = userSession || hasAdminPermission(adminRole, 'dokumen.academic.read');
     for (const d of (docs || [])) {
       let url = null;
-      const isAkademik = ['pasfoto', 'paspor', 'ijazah', 'transkrip'].includes(d.jenis_dokumen);
+      const isAkademik = ['pasfoto', 'paspor', 'ijazah', 'transkrip', 'akta_kelahiran'].includes(d.jenis_dokumen);
       if (canAccessAcademic && isAkademik) {
         url = await createSignedStorageUrl(supabase, d.file_path);
       }

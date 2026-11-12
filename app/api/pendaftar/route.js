@@ -401,7 +401,6 @@ if (hasPayloadPhone) {
                 !cleanNama ||
                 !cleanTempatLahir ||
                 !tanggal_lahir ||
-                !cleanPaspor ||
                 !cleanAlamat ||
                 !cleanSekolah ||
                 !parsedTahunLulus
@@ -423,7 +422,7 @@ if (hasPayloadPhone) {
             if (docsErr) throw docsErr;
 
             const uploadedTypes = new Set((docs || []).map((d) => d.jenis_dokumen));
-            const requiredDocs = ['pasfoto', 'paspor', 'ijazah', 'transkrip'];
+            const requiredDocs = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'];
             const missingDocs = requiredDocs.filter((reqDoc) => !uploadedTypes.has(reqDoc));
 
             if (missingDocs.length > 0) {

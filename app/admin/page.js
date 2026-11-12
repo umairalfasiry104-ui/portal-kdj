@@ -744,7 +744,7 @@ useEffect(() => {
                                                 WA: <span className="font-mono">{item.no_wa}</span> • Kampus: <span className="font-bold text-[#06315b]">{item.pilihan_kampus || '-'}</span>
                                             </div>
                                             <div className="text-[11px] text-slate-400 mt-1">
-                                                Berkas: {item.dokumen_pendaftar?.length || 0} / 4 • Bayar: <strong className="text-slate-600">{item.status_pembayaran || 'Belum Bayar'}</strong>
+                                                Berkas Portal: {(item.dokumen_pendaftar || []).filter((doc) => ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'].includes(doc.jenis_dokumen)).length} / 4 • Bayar: <strong className="text-slate-600">{item.status_pembayaran || 'Belum Bayar'}</strong>
                                             </div>
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase ${
@@ -856,7 +856,7 @@ useEffect(() => {
                                 docUpdates.map((doc) => (
                                     <div key={doc.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                                     <div>
-                                        <div className="text-xs font-bold uppercase text-[#06315b]">{doc.jenis_dokumen}</div>
+                                        <div className="text-xs font-bold uppercase text-[#06315b]">{doc.jenis_dokumen === 'akta_kelahiran' ? 'Akta Kelahiran' : doc.jenis_dokumen}</div>
                                         <Link href={doc.file_path} target="_blank" rel="noreferrer" className="text-xs text-amber-600 font-semibold underline">
                                         Buka Berkas
                                         </Link>
