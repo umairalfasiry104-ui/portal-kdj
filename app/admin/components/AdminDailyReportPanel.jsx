@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function todayInJakarta() {
     return new Intl.DateTimeFormat('en-CA', {
@@ -23,19 +23,32 @@ const SUMMARY_FIELDS = [
 ];
 
 export default function AdminDailyReportPanel() {
-    const [reportDate, setReportDate] = useState(todayInJakarta);
+    const reportDateRef = useRef(null);
+
     const [report, setReport] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [copyStatus, setCopyStatus] = useState('');
 
+    useEffect(() => {
+        if (reportDateRef.current) {
+            reportDateRef.current.value = todayInJakarta();
+        }
+    }, []);
+
     const generateReport = async () => {
+        const selectedDate = reportDateRef.current?.value || '';
+        if (!selectedDate) {
+            setError('Pilih tanggal laporan terlebih dahulu.');
+            setReport(null);
+            return;
+        }
         setLoading(true);
         setError('');
         setCopyStatus('');
         try {
             const response = await fetch(
-                `/api/admin/reports/daily?date=${encodeURIComponent(reportDate)}`,
+                `/api/admin/reports/daily?date=${encodeURIComponent(selectedDate)}`,
                 { cache: 'no-store' }
             );
             const result = await response.json().catch(() => null);
@@ -80,15 +93,15 @@ export default function AdminDailyReportPanel() {
                         <input
                             id="daily-report-date"
                             type="date"
-                            value={reportDate}
-                            onChange={(event) => setReportDate(event.target.value)}
+                            ref={reportDateRef}
+                            defaultValue=""
                             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                         />
                     </div>
                     <button
                         type="button"
                         onClick={() => void generateReport()}
-                        disabled={loading || !reportDate}
+                        disabled={loading}
                         className="rounded-lg bg-[#06315b] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                     >
                         {loading ? 'Membuat laporan...' : 'Generate / Refresh Report'}

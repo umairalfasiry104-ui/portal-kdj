@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const migration = read('supabase/migrations/20261109151551_kdj_bot_daily_reporting.sql');
+const migration = read('supabase/migrations/20261110083515_kdj_bot_daily_reporting_20261109.sql');
 assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.kdj_bot_activity_events/);
 assert.match(migration, /event_key text NOT NULL UNIQUE/);
 assert.match(migration, /event_key ~ '\^\[0-9a-f\]\{64\}\$'/);
@@ -32,6 +32,9 @@ const panel = read('app/admin/components/AdminDailyReportPanel.jsx');
 assert.match(panel, /Generate \/ Refresh Report/);
 assert.match(panel, /Salin untuk Human/);
 assert.match(panel, /navigator\.clipboard\.writeText/);
+assert.match(panel, /useRef\(null\)/, 'The report date input must use an uncontrolled ref.');
+assert.match(panel, /reportDateRef\.current\.value = todayInJakarta\(\)/, 'The WIB date must initialize after mount without render-time Date access.');
+assert.match(panel, /encodeURIComponent\(selectedDate\)/, 'The API must use the date read from the input ref.');
 assert.match(panel, /Tidak ada auto-send/);
 assert.doesNotMatch(panel, /\/api\/.*notify|sendMessage|callWaBotApi/);
 
