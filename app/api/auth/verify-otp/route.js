@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import {
     getSupabaseAdmin,
     consumeOtpAtomically,
+    checkSharedRateLimit,
+    getClientIpAddress,
+    SHARED_AUTH_RATE_LIMITS,
     getPhoneCandidates,
     setUserSessionCookie,
     clearSessionCookie,
@@ -62,6 +65,30 @@ function toCustomerUserDto(record) {
 
 export async function POST(req) {
     try {
+        const supabase = getSupabaseAdmin();
+        const clientIp = getClientIpAddress(req);
+        const ipRateLimit = SHARED_AUTH_RATE_LIMITS.customerOtpVerifyIp;
+        const ipRateCheck = await checkSharedRateLimit(
+            supabase,
+            ipRateLimit.scope,
+            clientIp,
+            ipRateLimit.maxRequests,
+            ipRateLimit.windowMs
+        );
+
+        if (!ipRateCheck.allowed) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'Terlalu banyak percobaan verifikasi dari jaringan ini. Silakan coba lagi nanti.'
+                },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': String(ipRateCheck.retryAfterSec) }
+                }
+            );
+        }
+
         const body = await req.json().catch(() => null);
         const phone = body?.phone;
         const otp = body?.otp;
@@ -73,7 +100,6 @@ export async function POST(req) {
             );
         }
 
-        const supabase = getSupabaseAdmin();
         const otpResult = await consumeOtpAtomically(supabase, phone, otp);
 
         if (!otpResult.valid) {

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:qualification": "node scripts/test-lead-qualification-contract.mjs && node scripts/test-followup-idle-final-contract.mjs",
-    "test:daily-report": "node scripts/test-daily-reporting-contract.mjs"
+    "test:daily-report": "node scripts/test-daily-reporting-contract.mjs",
+    "test:otp": "node scripts/test-otp-durable-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
