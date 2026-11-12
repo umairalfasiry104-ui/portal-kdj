@@ -53,6 +53,8 @@ function toAdminPendaftarDto(item, { canReadVerification, canReadFinance, signed
     Object.assign(result, {
       tempat_lahir: item.tempat_lahir ?? null,
       tanggal_lahir: item.tanggal_lahir ?? null,
+      nama_orang_tua_wali: item.nama_orang_tua_wali ?? null,
+      no_wa_orang_tua_wali: item.no_wa_orang_tua_wali ?? null,
       jenis_kelamin: item.jenis_kelamin ?? null,
       no_paspor: item.no_paspor ?? null,
       alamat_lengkap: item.alamat_lengkap ?? null,
@@ -91,7 +93,7 @@ export async function GET(req) {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('pendaftar')
-      .select('id, no_wa, nama_leads, nama_lengkap, pilihan_kampus, pilihan_jurusan, updated_at, tempat_lahir, tanggal_lahir, jenis_kelamin, no_paspor, alamat_lengkap, asal_sekolah, tahun_lulus, status_pendaftaran, catatan_admin, status_pembayaran, nominal_tagihan, bukti_bayar_url, dokumen_pendaftar (*)')
+      .select('id, no_wa, nama_leads, nama_lengkap, pilihan_kampus, pilihan_jurusan, updated_at, tempat_lahir, tanggal_lahir, nama_orang_tua_wali, no_wa_orang_tua_wali, jenis_kelamin, no_paspor, alamat_lengkap, asal_sekolah, tahun_lulus, status_pendaftaran, catatan_admin, status_pembayaran, nominal_tagihan, bukti_bayar_url, dokumen_pendaftar (*)')
       .order('updated_at', { ascending: false });
 
     if (error) throw error;

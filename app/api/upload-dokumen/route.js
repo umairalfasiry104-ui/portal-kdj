@@ -265,9 +265,12 @@ export async function GET(req) {
     }
 
     const supabase = getSupabaseAdmin();
+    const pendaftarColumns = userSession
+      ? 'id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin, nama_orang_tua_wali, no_wa_orang_tua_wali'
+      : 'id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin';
     let pendaftarQuery = supabase
       .from('pendaftar')
-      .select('id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin');
+      .select(pendaftarColumns);
 
     if (userSession) {
       pendaftarQuery = pendaftarQuery.eq('id', userSession.sub);

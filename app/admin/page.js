@@ -794,6 +794,8 @@ useEffect(() => {
                                     { label: 'Jenis Kelamin', value: selectedUser.jenis_kelamin },
                                     { label: 'Tempat Lahir', value: selectedUser.tempat_lahir },
                                     { label: 'Tanggal Lahir', value: selectedUser.tanggal_lahir },
+                                    { label: 'Nama Orang Tua/Wali', value: selectedUser.nama_orang_tua_wali },
+                                    { label: 'Nomor WhatsApp Orang Tua/Wali', value: selectedUser.no_wa_orang_tua_wali },
                                     { label: 'Nomor Paspor', value: selectedUser.no_paspor },
                                     { label: 'Nomor WhatsApp', value: selectedUser.no_wa },
                                     { label: 'Asal Sekolah / Pesantren', value: selectedUser.asal_sekolah },

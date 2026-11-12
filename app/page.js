@@ -75,6 +75,8 @@ export default function PortalKDJ() {
 
     const [formData, setFormData] = useState({
         nama_lengkap: '',
+        nama_orang_tua_wali: '',
+        no_wa_orang_tua_wali: '',
         tempat_lahir: '',
         tanggal_lahir: '',
         jenis_kelamin: 'Laki-laki',
@@ -126,6 +128,8 @@ export default function PortalKDJ() {
                     // Isi formData jika sebelumnya masih kosong tetapi di DB sudah ada
                     setFormData((prev) => ({
                         nama_lengkap: prev.nama_lengkap || data.pendaftar.nama_lengkap || '',
+                        nama_orang_tua_wali: prev.nama_orang_tua_wali || data.pendaftar.nama_orang_tua_wali || '',
+                        no_wa_orang_tua_wali: prev.no_wa_orang_tua_wali || data.pendaftar.no_wa_orang_tua_wali || '',
                         tempat_lahir: prev.tempat_lahir || data.pendaftar.tempat_lahir || '',
                         tanggal_lahir: prev.tanggal_lahir || data.pendaftar.tanggal_lahir || '',
                         jenis_kelamin: prev.jenis_kelamin || data.pendaftar.jenis_kelamin || 'Laki-laki',
@@ -172,6 +176,8 @@ export default function PortalKDJ() {
 
         setFormData({
             nama_lengkap: parsed.nama_lengkap || '',
+            nama_orang_tua_wali: parsed.nama_orang_tua_wali || '',
+            no_wa_orang_tua_wali: parsed.no_wa_orang_tua_wali || '',
             tempat_lahir: parsed.tempat_lahir || '',
             tanggal_lahir: parsed.tanggal_lahir || '',
             jenis_kelamin: parsed.jenis_kelamin || 'Laki-laki',
@@ -282,6 +288,8 @@ export default function PortalKDJ() {
                 localStorage.setItem('kdj_user', JSON.stringify(data.user));
                 setFormData({
                     nama_lengkap: data.user.nama_lengkap || '',
+                    nama_orang_tua_wali: data.user.nama_orang_tua_wali || '',
+                    no_wa_orang_tua_wali: data.user.no_wa_orang_tua_wali || '',
                     tempat_lahir: data.user.tempat_lahir || '',
                     tanggal_lahir: data.user.tanggal_lahir || '',
                     jenis_kelamin: data.user.jenis_kelamin || 'Laki-laki',
@@ -659,6 +667,33 @@ if (nextStep) {
                                             value={user.no_wa || ''}
                                             className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 font-mono"
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nama Orang Tua/Wali (Opsional)</label>
+                                        <input
+                                            type="text"
+                                            maxLength={150}
+                                            disabled={isLocked}
+                                            value={formData.nama_orang_tua_wali}
+                                            onChange={(e) => setFormData({ ...formData, nama_orang_tua_wali: e.target.value })}
+                                            placeholder="Masukkan nama orang tua/wali"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor WhatsApp Orang Tua/Wali (Opsional)</label>
+                                        <input
+                                            type="tel"
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            maxLength={20}
+                                            disabled={isLocked}
+                                            value={formData.no_wa_orang_tua_wali}
+                                            onChange={(e) => setFormData({ ...formData, no_wa_orang_tua_wali: e.target.value })}
+                                            placeholder="08xxxxxxxxxx atau +62xxxxxxxxxx"
+                                            className={inputClass}
+                                        />
+                                        <p className="text-[10px] text-slate-500 mt-1">Nomor akan disimpan dalam format 08xxxxxxxxxx.</p>
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Alamat Lengkap Domisili <span className="text-red-500">*</span></label>
