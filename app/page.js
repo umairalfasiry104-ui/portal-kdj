@@ -232,10 +232,10 @@ export default function PortalKDJ() {
     const calculateProgress = () => {
         const fields = [
             formData.nama_lengkap, formData.tempat_lahir, formData.tanggal_lahir,
-            formData.no_paspor, formData.alamat_lengkap, formData.asal_sekolah,
+            formData.alamat_lengkap, formData.asal_sekolah,
             formData.tahun_lulus, formData.pilihan_kampus, formData.pilihan_jurusan,
-            uploadedDocs['pasfoto'], uploadedDocs['paspor'], uploadedDocs['ijazah'], uploadedDocs['transkrip'],
-            buktiBayarUrl
+            uploadedDocs['pasfoto'], uploadedDocs['ijazah'], uploadedDocs['transkrip'],
+            uploadedDocs['akta_kelahiran'], buktiBayarUrl
         ];
         const filled = fields.filter((f) => f && String(f).trim() !== '').length;
         return Math.round((filled / fields.length) * 100);
@@ -308,7 +308,7 @@ export default function PortalKDJ() {
 
         // Validasi kelengkapan saat tombol Final Submit ditekan
         if (isFinalSubmit) {
-            const requiredDocs = ['pasfoto', 'paspor', 'ijazah', 'transkrip'];
+            const requiredDocs = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'];
             const missingDocs = requiredDocs.filter((doc) => !uploadedDocs[doc]);
             if (missingDocs.length > 0) {
                 alert(`⚠️ Mohon lengkapi dokumen wajib di Step 3 terlebih dahulu: ${missingDocs.join(', ').toUpperCase()}`);
@@ -641,7 +641,7 @@ if (nextStep) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor Paspor <span className="text-red-500">*</span></label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor Paspor (opsional; lengkapi melalui Admin Human setelah pendaftaran, paling lambat H-45)</label>
                                         <input
                                             type="text"
                                             disabled={isLocked}
@@ -790,15 +790,15 @@ if (nextStep) {
                             <div className="space-y-6">
                                 <div className="border-l-4 border-[#06315b] pl-3">
                                     <h2 className="text-base font-bold text-[#06315b]">3. Unggah Dokumen Persyaratan (Attachments)</h2>
-                                    <p className="text-xs text-slate-500">Unggah berkas asli Anda dalam format PDF, JPG, atau PNG (Maks. 5 MB).</p>
+                                    <p className="text-xs text-slate-500">Unggah berkas awal dalam format PDF, JPG, atau PNG (maks. 5 MB). Akta Kelahiran wajib diunggah saat pendaftaran awal. Dokumen paspor tidak diunggah melalui Portal dan tidak boleh dikirim ke WhatsApp Bot. Setelah pendaftaran, kirim langsung ke WhatsApp pribadi Admin Human menggunakan nomor yang diberikan langsung oleh Admin Human, paling lambat H-45 sebelum keberangkatan.</p>
                                 </div>
 
                                 <div className="space-y-4">
                                     {[
                                         { id: 'pasfoto', title: 'Pasfoto Resmi (4x6 Latar Putih)', req: 'Wajib' },
-                                        { id: 'paspor', title: 'Scan Halaman Identitas Paspor Aktif', req: 'Wajib' },
                                         { id: 'ijazah', title: 'Ijazah SMA / MA / Pesantren Sederajat', req: 'Wajib' },
-                                        { id: 'transkrip', title: 'Transkrip Nilai / SKHUN', req: 'Wajib' }
+                                        { id: 'transkrip', title: 'Transkrip Nilai / SKHUN', req: 'Wajib' },
+                                        { id: 'akta_kelahiran', title: 'Scan Akta Kelahiran', req: 'Wajib saat pendaftaran' }
                                     ].map((doc) => {
                                         const uploaded = uploadedDocs[doc.id];
                                         const isCurrentUploading = uploadingDoc === doc.id;
