@@ -152,6 +152,11 @@ async function runTwoProcesses(operation, commonPayload) {
 }
 
 async function main() {
+    if (process.env.KDJ_ALLOW_STAGING_MUTATION_TESTS !== 'true') {
+        console.log('[SKIP] Tes ini menulis data sintetis ke Supabase Staging. Set KDJ_ALLOW_STAGING_MUTATION_TESTS=true untuk opt-in secara eksplisit.');
+        return;
+    }
+
     const client = createStagingClient();
     const testId = crypto.randomUUID();
     const phone = '08' + crypto.randomInt(1000000000, 2000000000).toString();

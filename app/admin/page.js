@@ -129,6 +129,14 @@ export default function AdminDashboard() {
     const [selectedUser, setSelectedUser] = useState(null);
     const [statusBaru, setStatusBaru] = useState('');
     const [statusPembayaranBaru, setStatusPembayaranBaru] = useState('');
+    const [paymentReview, setPaymentReview] = useState(undefined);
+    const [paymentReviewReason, setPaymentReviewReason] = useState('');
+    const [paymentReopenDeadline, setPaymentReopenDeadline] = useState('');
+    const [paymentReviewLoading, setPaymentReviewLoading] = useState(false);
+    const [studentProgressInfo, setStudentProgressInfo] = useState(undefined);
+    const [studentProgressLoading, setStudentProgressLoading] = useState(false);
+    const [studentProgressReason, setStudentProgressReason] = useState('');
+    const [uploadingProgressDocument, setUploadingProgressDocument] = useState('');
     const [catatanAdmin, setCatatanAdmin] = useState('');
     const [catatanPembayaran, setCatatanPembayaran] = useState('');
     const [docUpdates, setDocUpdates] = useState([]);
@@ -447,12 +455,211 @@ useEffect(() => {
     }
   };
 
-    const handleSelectUser = (u) => {
+    const handleSelectUser = async (u) => {
     setSelectedUser(u);
     setStatusBaru(u.status_pendaftaran || 'Submitted');
     setStatusPembayaranBaru(u.status_pembayaran || 'Belum Bayar');
     setCatatanAdmin(u.catatan_admin || '');
     setDocUpdates(u.dokumen_pendaftar || []);
+    setPaymentReview(undefined);
+    setPaymentReviewReason('');
+    setPaymentReopenDeadline('');
+    setStudentProgressInfo(undefined);
+    setStudentProgressReason('');
+
+    if (adminUser?.role !== 'Super Admin') return;
+
+    const isApprovedApplicant = String(u.status_pendaftaran || '').toLowerCase() === 'approved';
+    if (isApprovedApplicant) {
+      setStudentProgressLoading(true);
+      try {
+        const progressResponse = await fetch(
+          `/api/student-progress?pendaftar_id=${encodeURIComponent(u.id)}`,
+          { cache: 'no-store' }
+        );
+        const progressResult = await progressResponse.json().catch(() => null);
+        if (!progressResponse.ok || !progressResult?.success) {
+          throw new Error(progressResult?.message || 'Gagal memuat progres mahasiswa.');
+        }
+        setStudentProgressInfo(progressResult);
+      } catch (error) {
+        console.error('Gagal memuat progres mahasiswa:', error);
+        setStudentProgressInfo({ error: error?.message || 'Gagal memuat progres.' });
+      } finally {
+        setStudentProgressLoading(false);
+      }
+    }
+
+    setPaymentReviewLoading(true);
+    try {
+      const response = await fetch(
+        `/api/admin/pendaftar/payment-review?pendaftar_id=${encodeURIComponent(u.id)}`,
+        { cache: 'no-store' }
+      );
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Gagal memuat status verifikasi pembayaran.');
+      }
+      setPaymentReview(result.payment ? result : null);
+    } catch (error) {
+      console.error('Gagal memuat payment review:', error);
+      setPaymentReview('ERROR');
+      setPaymentReviewReason('');
+    } finally {
+      setPaymentReviewLoading(false);
+    }
+  };
+
+  const reloadStudentProgress = async (pendaftarId) => {
+    const response = await fetch(
+      `/api/student-progress?pendaftar_id=${encodeURIComponent(pendaftarId)}`,
+      { cache: 'no-store' }
+    );
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.message || 'Gagal memuat ulang progres mahasiswa.');
+    }
+    setStudentProgressInfo(result);
+  };
+
+  const handleUploadStudentProgressDocument = async (documentType, file) => {
+    if (!selectedUser || !file) return;
+    setUploadingProgressDocument(documentType);
+    try {
+      const body = new FormData();
+      body.append('pendaftar_id', selectedUser.id);
+      body.append('document_type', documentType);
+      body.append('file', file);
+
+      const response = await fetch('/api/student-progress', {
+        method: 'POST',
+        body
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Gagal mengunggah dokumen progres.');
+      }
+
+      await reloadStudentProgress(selectedUser.id);
+      alert(`${documentType} berhasil diunggah. Versi sebelumnya tetap tersimpan dalam histori.`);
+    } catch (error) {
+      alert(error?.message || 'Gagal mengunggah dokumen progres.');
+    } finally {
+      setUploadingProgressDocument('');
+    }
+  };
+
+  const handleTransitionStudentProgress = async (nextStatus) => {
+    if (!selectedUser || studentProgressReason.trim().length < 3) {
+      alert('Alasan perubahan status wajib diisi minimal 3 karakter.');
+      return;
+    }
+
+    setStudentProgressLoading(true);
+    try {
+      const response = await fetch('/api/student-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'transition',
+          pendaftar_id: selectedUser.id,
+          progress_status: nextStatus,
+          reason: studentProgressReason.trim()
+        })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Perubahan progres gagal.');
+      }
+
+      setStudentProgressReason('');
+      await reloadStudentProgress(selectedUser.id);
+      alert('Status progres mahasiswa berhasil diperbarui.');
+    } catch (error) {
+      alert(error?.message || 'Gagal mengubah status progres mahasiswa.');
+    } finally {
+      setStudentProgressLoading(false);
+    }
+  };
+
+  const handleReviewRegistrationPayment = async (decision) => {
+    if (!selectedUser || !paymentReview?.payment?.id || !paymentReview?.proof?.id) return;
+    if (paymentReviewReason.trim().length < 3) {
+      alert('Isi alasan verifikasi atau penolakan minimal 3 karakter.');
+      return;
+    }
+
+    setPaymentReviewLoading(true);
+    try {
+      const response = await fetch('/api/admin/pendaftar/payment-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_id: paymentReview.payment.id,
+          proof_id: paymentReview.proof.id,
+          decision,
+          reason: paymentReviewReason.trim()
+        })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Verifikasi pembayaran gagal.');
+      }
+
+      alert(decision === 'APPROVE'
+        ? 'Pembayaran berhasil diverifikasi LUNAS. Upload berkas sekarang dapat dilakukan.'
+        : 'Bukti pembayaran ditolak. Calon mahasiswa harus mengunggah bukti yang diperbaiki.');
+
+      const currentUser = selectedUser;
+      await fetchPendaftar();
+      await handleSelectUser(currentUser);
+    } catch (error) {
+      alert(error.message || 'Terjadi kesalahan saat verifikasi pembayaran.');
+    } finally {
+      setPaymentReviewLoading(false);
+    }
+  };
+
+  const handleReopenRegistrationPayment = async () => {
+    if (!selectedUser || !paymentReview?.payment?.id) return;
+    if (!paymentReopenDeadline || paymentReviewReason.trim().length < 3) {
+      alert('Isi deadline baru (WIB) dan alasan pembukaan minimal 3 karakter.');
+      return;
+    }
+
+    const deadlineAt = new Date(`${paymentReopenDeadline}:00+07:00`);
+    if (Number.isNaN(deadlineAt.getTime()) || deadlineAt.getTime() <= Date.now()) {
+      alert('Deadline baru harus merupakan waktu di masa depan (WIB).');
+      return;
+    }
+
+    setPaymentReviewLoading(true);
+    try {
+      const response = await fetch('/api/admin/pendaftar/payment-review/reopen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_id: paymentReview.payment.id,
+          new_deadline_at: deadlineAt.toISOString(),
+          reason: paymentReviewReason.trim()
+        })
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Pembukaan kembali tagihan gagal.');
+      }
+
+      alert('Tagihan berhasil dibuka kembali dengan deadline baru.');
+      const currentUser = selectedUser;
+      setPaymentReviewReason('');
+      setPaymentReopenDeadline('');
+      await fetchPendaftar();
+      await handleSelectUser(currentUser);
+    } catch (error) {
+      alert(error?.message || 'Gagal membuka kembali tagihan.');
+    } finally {
+      setPaymentReviewLoading(false);
+    }
   };
 
     const handleDocStatusChange = (docId, newStatus) => {
@@ -480,7 +687,8 @@ useEffect(() => {
       }));
     }
 
-    if (role === 'Super Admin') {
+    if (role === 'Super Admin' && paymentReview === null) {
+      // Legacy records without the new payment ledger keep the old compatibility path.
       payload.status_pembayaran = statusPembayaranBaru;
     }
 
@@ -817,35 +1025,300 @@ useEffect(() => {
                             </div>
                             )}
 
-                            {/* BAGIAN PEMERIKSAAN BUKTI PEMBAYARAN */}
+                            {/* PAYMENT REVIEW: NEW LEDGER + LEGACY COMPATIBILITY */}
                             {adminUser?.role === 'Super Admin' && (
-                            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                                <label className="block text-xs font-extrabold text-[#06315b] uppercase">Verifikasi Pembayaran</label>
-                                <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600">Tagihan: Rp {Number(selectedUser.nominal_tagihan || 1500000).toLocaleString('id-ID')}</span>
-                                {selectedUser.bukti_bayar_url ? (
-                                    <Link href={selectedUser.bukti_bayar_url} target="_blank" rel="noreferrer" className="text-amber-600 font-bold underline">
-                                    🔍 Lihat Bukti Transfer
-                                    </Link>
-                                ) : (
-                                    <span className="text-red-500 font-semibold">⚠️ Belum upload bukti bayar</span>
-                                )}
+                                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                                    <label className="block text-xs font-extrabold text-[#06315b] uppercase">Verifikasi Pembayaran Pendaftaran</label>
+
+                                    {paymentReviewLoading && (
+                                        <p className="text-xs text-slate-500">Memuat data pembayaran...</p>
+                                    )}
+
+                                    {paymentReview === 'ERROR' && (
+                                        <p role="alert" className="text-xs text-red-700">
+                                            Data ledger pembayaran belum dapat diperiksa. Status pembayaran generik dinonaktifkan sampai data berhasil dimuat ulang.
+                                        </p>
+                                    )}
+
+                                    {paymentReview?.payment && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div>
+                                                    <p className="text-slate-500">Invoice</p>
+                                                    <p className="font-bold text-slate-800 break-all">{paymentReview.payment.invoice_ref}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-500">Nominal</p>
+                                                    <p className="font-bold text-slate-800">Rp {Number(paymentReview.payment.amount_idr).toLocaleString('id-ID')}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-500">Status</p>
+                                                    <p className="font-bold text-slate-800">{paymentReview.payment.effective_status || paymentReview.payment.status}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-500">Batas pembayaran</p>
+                                                    <p className="font-bold text-slate-800">{formatJakartaDateTime(paymentReview.payment.deadline_at)}</p>
+                                                </div>
+                                            </div>
+
+                                            {paymentReview.proof ? (
+                                                <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                                                    <p className="text-xs font-bold text-slate-700">
+                                                        Bukti pembayaran #{paymentReview.proof.attempt_no} · {paymentReview.proof.status}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-500 break-all">{paymentReview.proof.original_filename}</p>
+                                                    {paymentReview.proof.signed_url && (
+                                                        <Link href={paymentReview.proof.signed_url} target="_blank" rel="noreferrer" className="text-xs text-amber-700 font-bold underline">
+                                                            Buka Bukti Transfer
+                                                        </Link>
+                                                    )}
+                                                    {paymentReview.proof.review_reason && (
+                                                        <p className="text-xs text-red-700">Catatan sebelumnya: {paymentReview.proof.review_reason}</p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-500">Belum ada bukti pembayaran aktif.</p>
+                                            )}
+
+                                            {paymentReview.payment.status === 'PROOF_SUBMITTED' && paymentReview.proof?.status === 'SUBMITTED' && (
+                                                <div className="space-y-2">
+                                                    <textarea
+                                                        rows={2}
+                                                        value={paymentReviewReason}
+                                                        onChange={(event) => setPaymentReviewReason(event.target.value)}
+                                                        maxLength={1000}
+                                                        placeholder="Alasan verifikasi atau penolakan (wajib, min. 3 karakter)"
+                                                        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
+                                                    />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button
+                                                            type="button"
+                                                            disabled={paymentReviewLoading || paymentReviewReason.trim().length < 3}
+                                                            onClick={() => handleReviewRegistrationPayment('APPROVE')}
+                                                            className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                        >
+                                                            Setujui & Tandai Lunas
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={paymentReviewLoading || paymentReviewReason.trim().length < 3}
+                                                            onClick={() => handleReviewRegistrationPayment('REJECT')}
+                                                            className="rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                        >
+                                                            Tolak & Minta Revisi
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {['PENDING_PAYMENT', 'REVISION_REQUIRED', 'EXPIRED'].includes(paymentReview.payment.effective_status || paymentReview.payment.status) && (
+                                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                                                    <p className="text-xs font-bold text-amber-900">Buka Kembali / Perpanjang Tagihan</p>
+                                                    <p className="text-[10px] text-amber-800">
+                                                        Super Admin menentukan deadline baru dalam WIB dan wajib mencatat alasan. Database akan menolak pembukaan tagihan yang masih aktif dan belum kedaluwarsa.
+                                                    </p>
+                                                    <label className="block text-[10px] font-semibold text-slate-600">
+                                                        Deadline baru (Asia/Jakarta / WIB)
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={paymentReopenDeadline}
+                                                            onChange={(event) => setPaymentReopenDeadline(event.target.value)}
+                                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
+                                                        />
+                                                    </label>
+                                                    <label className="block text-[10px] font-semibold text-slate-600">
+                                                        Alasan pembukaan (wajib)
+                                                        <textarea
+                                                            rows={2}
+                                                            value={paymentReviewReason}
+                                                            onChange={(event) => setPaymentReviewReason(event.target.value)}
+                                                            maxLength={1000}
+                                                            placeholder="Contoh: Pemohon meminta perpanjangan karena kendala transfer."
+                                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
+                                                        />
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        disabled={paymentReviewLoading || !paymentReopenDeadline || paymentReviewReason.trim().length < 3}
+                                                        onClick={handleReopenRegistrationPayment}
+                                                        className="w-full rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                    >
+                                                        Buka Kembali Tagihan
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {paymentReview.payment.status === 'PAID' && (
+                                                <p className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-800">
+                                                    Pembayaran sudah diverifikasi LUNAS. Akses upload berkas terbuka.
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {paymentReview === null && (
+                                        <>
+                                            <p className="text-[11px] text-slate-500">
+                                                Record legacy belum menggunakan payment ledger baru. Perubahan status lama tetap tersedia untuk kompatibilitas.
+                                            </p>
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-slate-600">Tagihan: Rp {Number(selectedUser.nominal_tagihan || 1500000).toLocaleString('id-ID')}</span>
+                                                {selectedUser.bukti_bayar_url ? (
+                                                    <Link href={selectedUser.bukti_bayar_url} target="_blank" rel="noreferrer" className="text-amber-600 font-bold underline">
+                                                        🔍 Lihat Bukti Transfer
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-red-500 font-semibold">Belum ada bukti bayar</span>
+                                                )}
+                                            </div>
+                                            <select
+                                                value={statusPembayaranBaru}
+                                                onChange={(event) => setStatusPembayaranBaru(event.target.value)}
+                                                className="w-full text-xs border border-slate-300 rounded-lg p-2 bg-white font-semibold"
+                                            >
+                                                <option value="Belum Bayar">Belum Bayar</option>
+                                                <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+                                                <option value="Lunas">Lunas (Approved)</option>
+                                                <option value="Ditolak">Ditolak</option>
+                                            </select>
+                                        </>
+                                    )}
                                 </div>
-                                <select
-                                    value={statusPembayaranBaru}
-                                    onChange={(e) => setStatusPembayaranBaru(e.target.value)}
-                                    className="w-full text-xs border border-slate-300 rounded-lg p-2 bg-white font-semibold"
-                                    >
-                                    <option value="Belum Bayar" disabled={adminUser?.role === 'Admin Verifikator'}>
-                                        Belum Bayar {adminUser?.role === 'Admin Verifikator' ? '(Status Awal)' : ''}
-                                    </option>
-                                    <option value="Menunggu Verifikasi" disabled={adminUser?.role === 'Admin Verifikator'}>
-                                        Menunggu Verifikasi {adminUser?.role === 'Admin Verifikator' ? '(Status Awal)' : ''}
-                                    </option>
-                                    <option value="Lunas">Lunas (Approved) ✅</option>
-                                    <option value="Ditolak">Ditolak ❌</option>
-                                    </select>
-                            </div>
+                            )}
+
+                            {/* PROGRES MAHASISWA DAN DOKUMEN PERJALANAN */}
+                            {adminUser?.role === 'Super Admin' && String(selectedUser.status_pendaftaran || '').toLowerCase() === 'approved' && (
+                                <section className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-4">
+                                    <div>
+                                        <h4 className="text-xs font-extrabold uppercase text-[#06315b]">Progres Mahasiswa & Dokumen Perjalanan</h4>
+                                        <p className="mt-1 text-[10px] text-slate-500">Dokumen Suketmah, LOA, Visa, dan Tiket dapat diunggah secara independen, tidak harus berurutan.</p>
+                                    </div>
+
+                                    {studentProgressLoading && (
+                                        <p className="text-xs text-slate-500">Memuat progres mahasiswa...</p>
+                                    )}
+
+                                    {studentProgressInfo?.error && (
+                                        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                                            {studentProgressInfo.error}
+                                        </p>
+                                    )}
+
+                                    {studentProgressInfo && !studentProgressInfo.error && (
+                                        <>
+                                            <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                                                <p className="text-[10px] font-bold uppercase text-slate-500">Tahap utama</p>
+                                                <p className="mt-1 text-sm font-extrabold text-[#06315b]">
+                                                    {({
+                                                        TRANSLATION_AND_CAMPUS_REGISTRATION: 'Proses Penerjemahan & Pendaftaran ke Kampus Tujuan',
+                                                        WAITING_DEPARTURE: 'Menunggu Keberangkatan',
+                                                        DEPARTED: 'Berangkat'
+                                                    })[studentProgressInfo.progress?.progress_status || 'TRANSLATION_AND_CAMPUS_REGISTRATION']}
+                                                </p>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {[
+                                                    { type: 'SUKETMAH', label: 'Suketmah' },
+                                                    { type: 'LOA', label: 'LOA' },
+                                                    { type: 'VISA', label: 'Visa' },
+                                                    { type: 'TICKET', label: 'Tiket' }
+                                                ].map((document) => {
+                                                    const currentDocument = (studentProgressInfo.documents || []).find((item) => item.document_type === document.type);
+                                                    return (
+                                                        <div key={document.type} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs font-bold text-slate-800">{document.label}</p>
+                                                                    <p className="text-[10px] text-slate-500">
+                                                                        {currentDocument
+                                                                            ? `Tersedia · versi ${currentDocument.version_no} · ${currentDocument.original_filename}`
+                                                                            : 'Belum tersedia'}
+                                                                    </p>
+                                                                </div>
+                                                                {currentDocument?.download_url && (
+                                                                    <Link
+                                                                        href={currentDocument.download_url}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="shrink-0 text-[11px] font-bold text-amber-700 underline"
+                                                                    >
+                                                                        Lihat
+                                                                    </Link>
+                                                                )}
+                                                            </div>
+                                                            <label className="block">
+                                                                <span className="mb-1 block text-[10px] font-semibold text-slate-500">
+                                                                    {currentDocument ? 'Ganti / unggah versi terbaru (PDF maks. 5 MB)' : 'Unggah PDF (maks. 5 MB)'}
+                                                                </span>
+                                                                <input
+                                                                    type="file"
+                                                                    accept="application/pdf,.pdf"
+                                                                    disabled={studentProgressLoading || uploadingProgressDocument === document.type}
+                                                                    onChange={(event) => {
+                                                                        const selectedFile = event.target.files?.[0];
+                                                                        if (selectedFile) void handleUploadStudentProgressDocument(document.type, selectedFile);
+                                                                        event.target.value = '';
+                                                                    }}
+                                                                    className="w-full text-[11px] file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-[11px] file:font-bold"
+                                                                />
+                                                            </label>
+                                                            {uploadingProgressDocument === document.type && (
+                                                                <p className="text-[10px] text-amber-700">Mengunggah {document.label}...</p>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="border-t border-emerald-200 pt-3 space-y-2">
+                                                <label className="block text-[10px] font-bold text-slate-600">
+                                                    Alasan / catatan perubahan tahap (wajib)
+                                                </label>
+                                                <textarea
+                                                    rows={2}
+                                                    value={studentProgressReason}
+                                                    onChange={(event) => setStudentProgressReason(event.target.value)}
+                                                    maxLength={1000}
+                                                    placeholder="Contoh: Proses penerjemahan selesai dan seluruh dokumen perjalanan sudah terbit."
+                                                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
+                                                />
+
+                                                {(!studentProgressInfo.progress?.progress_status
+                                                    || studentProgressInfo.progress?.progress_status === 'TRANSLATION_AND_CAMPUS_REGISTRATION') && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={studentProgressLoading || studentProgressReason.trim().length < 3}
+                                                        onClick={() => handleTransitionStudentProgress('WAITING_DEPARTURE')}
+                                                        className="w-full rounded-lg bg-[#06315b] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                    >
+                                                        Tandai Menunggu Keberangkatan
+                                                    </button>
+                                                )}
+
+                                                {studentProgressInfo.progress?.progress_status === 'WAITING_DEPARTURE' && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={studentProgressLoading || studentProgressReason.trim().length < 3}
+                                                        onClick={() => handleTransitionStudentProgress('DEPARTED')}
+                                                        className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                    >
+                                                        Konfirmasi Sudah Berangkat
+                                                    </button>
+                                                )}
+
+                                                {studentProgressInfo.progress?.progress_status === 'DEPARTED' && (
+                                                    <p className="rounded-lg bg-emerald-100 p-2 text-xs font-bold text-emerald-800">
+                                                        Status akhir: calon mahasiswa sudah berangkat.
+                                                    </p>
+                                                )}
+                                                <p className="text-[10px] text-slate-500">
+                                                    Perubahan tahap memerlukan alasan Admin dan tercatat di riwayat. Persyaratan dokumen untuk tahap keberangkatan masih menunggu keputusan kebijakan Owner.
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
+                                </section>
                             )}
 
                             {/* PEMERIKSAAN DOKUMEN PERSYARATAN */}
@@ -1321,7 +1794,7 @@ useEffect(() => {
             {activeTab === 'system' && adminUser.role === 'Super Admin' && <AdminSystemPanel />}
             {activeTab === 'followups' && adminUser.role === 'Super Admin' && <AdminFollowupsPanel />}
             {activeTab === 'lead-qualification' && canAccessLeadQualificationTab(adminUser.role) && <AdminLeadQualificationPanel />}
-            {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan'].includes(adminUser.role) && <AdminDailyReportPanel />}
+            {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan'].includes(adminUser.role) && <AdminDailyReportPanel isSuperAdmin={adminUser.role === 'Super Admin'} />}
 
             {/* TAB TIM ADMIN (READ-ONLY KHUSUS SUPER ADMIN) */}
       {activeTab === 'admins' && canAccessAdminsTab(adminUser.role) && (

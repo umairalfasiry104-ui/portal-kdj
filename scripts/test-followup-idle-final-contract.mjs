@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const migration=fs.readFileSync(new URL('../supabase/migrations/20261109_kdj_lead_qualification_fu_final.sql',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/20261109133525_kdj_lead_qualification_fu_final_20261109.sql',import.meta.url),'utf8');
 const bot=fs.readFileSync(new URL('../../kdj-wa-bot/lib/system-ops.js',import.meta.url),'utf8');
 const api=fs.readFileSync(new URL('../app/api/admin/followups/route.js',import.meta.url),'utf8');
 assert.match(migration,/jobs_created',0/);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const migration=fs.readFileSync(new URL('../supabase/migrations/20261109_kdj_lead_qualification_fu_final.sql',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/20261109133525_kdj_lead_qualification_fu_final_20261109.sql',import.meta.url),'utf8');
 const route=fs.readFileSync(new URL('../app/api/admin/lead-qualification/route.js',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../app/admin/components/AdminLeadQualificationPanel.jsx',import.meta.url),'utf8');
 assert.match(migration,/sequence_status='AWAITING_IDLE'/);
