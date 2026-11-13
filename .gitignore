@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 _local_backups/
 /supabase/.temp/
+
+# local logs and verification outputs
+*.log
+*-main.txt
+test-output-*.txt
+dependency-tree.txt
