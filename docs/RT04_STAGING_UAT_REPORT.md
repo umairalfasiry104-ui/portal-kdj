@@ -196,3 +196,158 @@ Runtime evidence note: the Bot was run from the local worktree at HEAD `8023fb0`
 - Vercel Preview is not a Staging target; Vercel env points to a separate Supabase project reporting INACTIVE. The Vercel `WA_BOT_API_URL` variable is sensitive and its value was returned empty by the available API, so its host remains unverified. No Vercel env change or deployment made.
 - VPS: not provisioned yet; future deployment gate remains.
 - Production: untouched by this work.
+
+---
+
+## Akta Kelahiran and Daily Report API/Storage UAT — 10 November 2026
+
+**Target:** Supabase Staging pgmdurnylyuqkikbwwwy; local Portal 127.0.0.1:3000.
+**Test data:** One temporary synthetic applicant and one-pixel PNG test files. Temporary applicant/document rows and Storage objects were removed in the test cleanup.
+
+### Akta Kelahiran
+| Case | Expected | Result |
+|---|---|---|
+| Final submit without Akta Kelahiran | HTTP 400 and missing Akta identified | PASS |
+| Upload Akta Kelahiran through applicant endpoint | File accepted, private Storage object created, document row persisted | PASS |
+| Admin Verifikator document retrieval | Signed Akta document record visible | PASS |
+| Cleanup | Synthetic applicant, document rows and uploaded test objects removed | PASS |
+
+This run proves the local Portal API and Staging Storage integration for Akta upload/retrieval. It did not run a full browser interaction, real customer OTP, or a successful final submit that would call the external WhatsApp status-notification endpoint.
+
+### Daily Report role/API UAT
+| Actor | Expected | Result |
+|---|---|---|
+| Super Admin | Report endpoint allowed | HTTP 200 — PASS |
+| Admin Konsultan | Report endpoint allowed | HTTP 200 — PASS |
+| Admin Verifikator | Report endpoint denied | HTTP 403 — PASS |
+| No authenticated session | Report endpoint denied | HTTP 401 — PASS |
+
+The report API returned non-empty report text for the allowed roles. Generation remains manual and copy-only; no WhatsApp/email auto-send is implemented or authorized. Browser UI rendering and clipboard interaction were not covered by this API test.
+
+### Current related automated verification
+- Portal scripts/test-birth-certificate-upload.mjs: PASS, including the four-slot Portal document contract and no applicant Passport upload slot.
+- Portal npm run test:daily-report: PASS after correcting the contract script to the applied migration filename 20261110083515_kdj_bot_daily_reporting_20261109.sql.
+- Portal qualification/follow-up contract tests: PASS.
+- Portal ESLint: PASS, zero errors and five existing no-img-element warnings.
+- Latest Portal build before the subsequent Passport-flow adjustment: PASS. A final build after the Passport-flow adjustment is still required.
+- Bot check, test:baseline, test:scheduling, test:qualification, test:daily-report, and test:rt04: PASS after Markdown approval. RT04 result is synthetic/automated and is not live customer consent UAT.
+
+### Remaining live UAT
+- Applicant browser journey with real OTP: PENDING (depends on WhatsApp Bot readiness).
+- Full successful final submit through the external notification call: PENDING.
+- Daily Report browser UI/clipboard UAT: PENDING.
+- Real customer WhatsApp RT04 summary → SETUJU → replay → BATAL: PENDING.
+
+---
+
+## Final Portal/Bot regression supplement — 10 November 2026
+
+After the Passport handoff change:
+- Applicant Passport upload endpoint test: **PASS** — POST /api/upload-dokumen with jenis_dokumen=paspor returns HTTP 400; temporary applicant row was removed.
+- Portal production build: **PASS** — Next.js 16.4.3; compilation and TypeScript passed; all 19 static pages generated; all application/API routes listed; exit code 0.
+- Bot final regression after revised Passport SOP/KB/Few-Shot/Guardrails: check, baseline, scheduling, qualification, daily-report and RT04 all **PASS**.
+- Portal contract checks, Daily Report API contract, ESLint and git diff --check remain PASS as recorded above.
+
+The Bot RT04 suite remains automated/synthetic. Live customer WhatsApp approval is still pending. The Bot readiness incident remains under the operator's handling and is not closed by this regression run.
+
+
+---
+
+## Staging UAT data reset — 10 November 2026
+
+Owner-directed cleanup completed on Supabase Staging project pgmdurnylyuqkikbwwwy after the current API/contract/build evidence was recorded.
+
+- 189 rows removed across transactional and UAT tables: applicants/documents, bookings/outbox, follow-up/consent/profile/jobs, lead qualifications/events, Bot activity, heartbeat/incidents, OTP, RT04 customer approvals/nonces, Admin booking audit, and Admin lifecycle audit.
+- 12 objects removed from the berkas_kdj Storage bucket through the Storage API; bucket retained and verified empty.
+- Three public.admins rows remain and all three are active.
+- Bot and Admin HMAC key-custody rows remain (one in each key table).
+- Required singleton system config remains: kdj_bot_reporting_config, kdj_system_controls, and kdj_followup_delivery_gate (one row each).
+- kdj_bot_reporting_config.ledger_enabled_at reset to NULL. The next successfully recorded Bot event will establish the new reporting coverage start.
+- Schemas, functions, ACLs, migration history, and the Production project were not changed.
+
+Post-reset smoke: Super Admin session still receives HTTP 200 from the Daily Report API with an empty event ledger; the three Admin accounts remain active.
+
+## Bot dependency activation / readiness update — 10 November 2026
+
+The earlier note that Bot readiness/heartbeat remained under operator repair is superseded for the local Staging process:
+
+- Remediated dependency graph is installed in the main Bot repository using npm ci.
+- Puppeteer 25.16.0 postinstall was explicitly approved and rebuilt; Chromium 156.0.8078.47 headless launch smoke passes.
+- 14/14 Bot tests, npm run test:baseline, npm run check and security checks pass; npm audits report 0 vulnerabilities.
+- Bot restarted as PID 18436 and emitted WhatsApp READY. WhatsApp Web runtime: 2.3000.1053914165.
+- Supabase Staging heartbeats at 2026-11-10 15:39:27 UTC and 15:39:57 UTC show bot_process OK, Supabase OK and WhatsApp OK/READY.
+- A safe authenticated Portal → Bot route check returned HTTP 400 INVALID_PAYLOAD, proving API-key middleware acceptance without sending a WhatsApp message.
+
+**Still pending:** fresh inbound customer conversation UAT, RT04 live customer summary → exact SETUJU → replay → BATAL, and Outbox provider send/ack after this dependency activation. No live test/customer WhatsApp message was sent during the activation work. Production remains untouched.
+
+## Live WhatsApp UAT update — 10 November 2026
+
+**STG-05 — PASS (limited inbound/reply evidence):** After the Bot restart, Staging ledger recorded CUSTOMER_INBOUND at 23:09:11 WIB and BOT_REPLY at 23:09:22 WIB. The Bot log confirmed successful LID resolution to operator-controlled handset suffix 1604. A lead-qualification timeout warning occurred on that message; the chat reply was still recorded. Full booking-intent conversation remains part of UAT-07.
+
+**STG-06 — PASS:** An Admin-attested synthetic Staging booking for the internal test handset produced a BOOKING_CREATED Outbox send and provider message ID (one attempt). The booking was then changed to Batal through the approved Admin booking RPC; the resulting BOOKING_CANCELLED Outbox event also reached SENT with provider message ID (one attempt). Final booking status Batal. Global Staging Outbox after test: 2 SENT rows, both provider acknowledged; no PENDING/PROCESSING/UNKNOWN/FAILED rows.
+
+**UAT-07 — OPEN:** Live customer decision flow still needs the controlled operator handset to start a booking conversation and personally send SETUJU/BATAL. Exact replay of the same provider message ID remains covered by the synthetic service-flow test; a separately typed second SETUJU is a duplicate-intent check, not the same transport message replay.
+
+Policy boundary: RT04 BATAL cancels a pending approval only. It does not cancel a CONSUMED booking. Verify BATAL against a second pending approval; cancel any already-created test booking through the Admin lane. No CR/CIR-approved expansion of customer appointment cancellation is in scope.
+
+
+## UAT-07 live follow-up — RT04 SETUJU result (10 November 2026)
+
+The earlier UAT-07 OPEN note is superseded for the `SETUJU` path:
+- Controlled handset suffix 1604 completed a live RT04 approval. `private.booking_customer_approvals` records `SETUJU`, status `CONSUMED`, approved at 23:20:18 WIB.
+- One booking was created: ID `131635bb-5f1d-4cf6-a780-9236088ce002`, customer name `Bejo`, Zoom, 12 November 2026 10:00 WIB, status `Terjadwal`.
+- One `BOOKING_CREATED` Outbox event is linked to the booking; it reached `SENT`, attempts 1, provider_message_id present, at 23:20:19 WIB.
+- Idempotency snapshot: one approval for the request, one matching booking, one create event, one total event for that booking. No duplicate booking was observed.
+- Global Staging Outbox: 3/3 events SENT with provider IDs. Latest heartbeat showed Bot process, Supabase, and WhatsApp READY/OK; no system incident rows.
+- Exact same-provider-message replay remains covered by automated contract tests; no live transport replay was claimed.
+- Remaining UAT-07 item: `BATAL` on a **second pending approval**. Never use `BATAL` as a cancellation of this already `CONSUMED` booking; that would contradict the approved RT04 contract. Current booking remains `Terjadwal`.
+
+**Disposition: UAT-07 PARTIAL — live SETUJU/booking/outbound path PASS; pending-approval BATAL path OPEN.**
+
+
+## UAT-07 live pending-approval BATAL result + validation follow-up — 10 November 2026
+
+### Live BATAL branch — PASS
+
+- Controlled handset suffix: 1604; test customer name captured by Bot: `Bejo`.
+- Second approval ID: `de8170ca-c705-4cc0-9d58-dfe371e20dff`; request ID: `46052e74-dd11-444a-b7ae-e59208cd0dd1`.
+- Requested method/time: Offline, 14 November 2026 09:00 WIB.
+- Approval prepared at 23:30:16.356 WIB. The inbound BATAL event was recorded at 23:30:35.279 WIB; DB cancellation persisted at 23:30:37.006 WIB; Bot reply event followed at 23:30:37.446 WIB.
+- Final approval state: `CANCELLED`; `cancellation_message_ref` present; `booking_id=NULL`; `notification_event_id=NULL`; zero booking rows linked to this approval.
+- This verifies BATAL cancels the pending approval only and does not create a booking or Outbox notification.
+
+### Cross-check of the SETUJU branch and system state
+
+- The earlier SETUJU approval remains `CONSUMED`; exactly one linked booking exists with status `Terjadwal`.
+- Its `BOOKING_CREATED` Outbox event remains `SENT`, attempts 1, provider_message_id present.
+- The cancelled BATAL request did not create a second booking. Across Staging, Outbox has 3 rows, all `SENT`, with 0 PENDING/PROCESSING/UNKNOWN/FAILED.
+- Latest Bot process, Supabase, and WhatsApp heartbeats were `OK`; WhatsApp state `READY`; no open system incidents.
+- Exact replay of the same provider-message ID is covered by the automated RT04 contract test. No live handset transport replay is claimed.
+- The first SETUJU test booking remains `Terjadwal`; no Admin cancellation/cleanup was performed. Do not interpret BATAL for the second pending approval as cancellation of that consumed booking.
+
+### Follow-up finding — closed-day validation occurs too late
+
+The second approval was prepared for Saturday, 14 November 2026 at 09:00 WIB (ISO weekday 6), and the customer-visible approval summary was sent before BATAL was received.
+
+Inspection of the active Staging function definitions shows:
+- `public.kdj_prepare_booking_approval` validates identity, method, timezone, duration, buffer, name, and timestamp parsing, but does not validate weekday, working hours, H-1, or slot availability before it persists PREPARED and allows the Bot to send the approval summary.
+- The finalization path calls `public.kdj_create_booking`, which does enforce the previous-day rule, Monday–Friday (ISO day 1–5), 09:00–17:00 hours for a 120-minute session, and slot exclusion before inserting a booking.
+- Therefore the invalid Saturday approval was cancelled without a booking. If approved, the final booking transaction would reject it with `CLOSED_DAY`; no invalid booking was created in this test.
+
+**Disposition:** UAT-07 customer-consent behavior (live SETUJU, automated exact replay contract, live BATAL against a separate pending approval) is **PASS WITH FOLLOW-UP / STAGING ONLY**. Record the PREPARE closed-day validation gap for a minimal bug-fix review against the frozen Scheduling V2 policy. No source code, schema, migration, or Production change was made during this verification.
+
+
+## RT04 PREPARE Scheduling V2 preflight fix — 11 November 2026
+
+**Status: CLOSED / STAGING ONLY.** The original PREPARE RPC could send a summary for a closed day or out-of-hours slot even though final booking creation would reject it. Migration `20261110172031_rt04_prepare_schedule_policy_validation` now applies the existing H-1, Monday–Friday, 09:00–17:00 WIB, and 150-minute active-slot-overlap checks before creating a PREPARED approval. The final `kdj_create_booking` transaction remains authoritative for race safety.
+
+Signed HMAC integration against Staging passed five cases:
+- Same-day 11 Nov 2026 10:00 → `BOOKING_REQUIRES_PREVIOUS_DAY`.
+- Saturday 14 Nov 2026 09:00 → `CLOSED_DAY`.
+- Friday 13 Nov 2026 08:00 → `OUTSIDE_WORKING_HOURS`.
+- Active booking overlap (12 Nov 2026 10:00) → `SLOT_UNAVAILABLE`.
+- Valid Friday 13 Nov 2026 10:00 → `PREPARED` (positive control; no summary sent).
+
+Temporary positive-control approval and all five HMAC nonce rows were deleted. Verification found 0 test approvals/nonces remaining, booking count unchanged at 2, Outbox 3 SENT / 0 nonterminal. Bot `npm run check`, `npm run test:rt04`, `npm run test:scheduling`, and diff check passed.
+
+Bot response handling was updated and Bot restarted safely after Puppeteer Browser.close. Final PID 25136, API listener 127.0.0.1:3001, WhatsApp Web 2.3000.1053925913 READY, Bot/Supabase/WhatsApp heartbeats OK. LocalAuth profile preserved. Production untouched; no commit/push/deployment.

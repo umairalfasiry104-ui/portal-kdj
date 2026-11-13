@@ -86,3 +86,9 @@ Before creating or starting the future VPS Bot:
 ## Safety record
 
 No Production project, Supabase project `oudjeospzpiwkupfutow`, Vercel env variable, Vercel alias, or deployment was modified. No VPS exists. No actual WhatsApp provider message was sent in the Staging UAT.
+
+## Local Bot runtime update — 10 November 2026
+
+At the OD-08 audit snapshot, no active KDJ Bot runtime process was observed. That historical statement is superseded for the current local Staging session: after dependency activation the Bot is running as Node PID 18436, local API 127.0.0.1:3001, WhatsApp READY and heartbeat OK.
+
+This is not a VPS deployment and does not change the future VPS go-live checklist. Re-run OD-08 against the future VPS/process manager, Vercel, cron, webhooks and integrations before bringing any Production Bot caller online.
