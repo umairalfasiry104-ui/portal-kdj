@@ -225,6 +225,23 @@ if (
     );
 }
 
+const is_initial_submit = body.is_initial_submit === true;
+if (
+    body.is_initial_submit !== undefined &&
+    typeof body.is_initial_submit !== 'boolean'
+) {
+    return NextResponse.json(
+        { success: false, message: 'is_initial_submit harus berupa boolean.' },
+        { status: 422 }
+    );
+}
+if (is_initial_submit && is_final_submit === true) {
+    return NextResponse.json(
+        { success: false, message: 'Submit data awal dan submit berkas harus dilakukan pada tahap terpisah.' },
+        { status: 422 }
+    );
+}
+
 if (
     body.is_revision !== undefined &&
     typeof body.is_revision !== 'boolean'
@@ -393,7 +410,7 @@ if (hasPayloadPhone) {
         const supabase = getSupabaseAdmin();
         const { data: currentRecord, error: fetchErr } = await supabase
             .from('pendaftar')
-            .select('id, no_wa, status_pendaftaran, bukti_bayar_url')
+            .select('id, no_wa, status_pendaftaran, status_pembayaran, bukti_bayar_url')
             // Identitas utama berasal dari UUID sesi, bukan payload browser.
             // Filter nomor tambahan mengikat ulang record ke nomor sesi.
             .eq('id', session.sub)
@@ -471,13 +488,27 @@ if (hasPayloadPhone) {
                 );
             }
 
-            if (!currentRecord.bukti_bayar_url) {
+            const { data: paymentRecord, error: paymentLookupError } = await supabase
+                .from('kdj_registration_payments')
+                .select('status')
+                .eq('pendaftar_id', currentRecord.id)
+                .maybeSingle();
+
+            if (paymentLookupError) throw paymentLookupError;
+
+            // Existing applicants with legacy verified Lunas status remain readable.
+            const paymentIsPaid = paymentRecord
+                ? paymentRecord.status === 'PAID'
+                : currentRecord.status_pembayaran === 'Lunas';
+
+            if (!paymentIsPaid) {
                 return NextResponse.json(
                     {
                         success: false,
-                        message: 'Bukti transfer pembayaran wajib diunggah sebelum mengirim pendaftaran.'
+                        code: 'PAYMENT_NOT_PAID',
+                        message: 'Pembayaran pendaftaran harus dikonfirmasi Lunas oleh Admin sebelum berkas dapat dikirim.'
                     },
-                    { status: 400 }
+                    { status: 403 }
                 );
             }
 
@@ -515,6 +546,39 @@ if (hasPayloadPhone) {
             throw updateErr || new Error('Gagal memperbarui data pendaftaran.');
         }
 
+        let payment = null;
+        if (is_initial_submit) {
+            if (isRevisionServer || isLockedStatus) {
+                return NextResponse.json(
+                    { success: false, message: 'Data awal tidak dapat disubmit ulang pada status pendaftaran saat ini.' },
+                    { status: 409 }
+                );
+            }
+
+            const { data: paymentData, error: paymentError } = await supabase.rpc(
+                'kdj_start_registration_payment',
+                { p_pendaftar_id: currentRecord.id }
+            );
+
+            if (paymentError) {
+                console.error('[-] Gagal membuat invoice pendaftaran:', paymentError.code, paymentError.message);
+                throw paymentError;
+            }
+
+            if (paymentData?.success !== true) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        code: paymentData?.code || 'PAYMENT_INVOICE_NOT_CREATED',
+                        message: paymentData?.message || 'Tagihan pembayaran belum dapat dibuat.'
+                    },
+                    { status: 409 }
+                );
+            }
+
+            payment = paymentData;
+        }
+
         // Pengiriman notifikasi WA dipisahkan dari keberhasilan transaksi DB (ACT-12, ACT-13, ACT-14)
         let waNotified = false;
         let correlationId = null;
@@ -543,6 +607,7 @@ if (hasPayloadPhone) {
         return NextResponse.json({
             success: true,
             user: toCustomerUpdateDto(updatedUser),
+            ...(payment ? { payment } : {}),
             wa_notified: waNotified,
             correlation_id: correlationId
         });

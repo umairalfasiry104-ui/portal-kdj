@@ -66,6 +66,7 @@ export default function PortalKDJ() {
     const [user, setUser] = useState(null);
 
     const [wizardStep, setWizardStep] = useState(1);
+    const [countdownNow, setCountdownNow] = useState(0);
     const [uploadedDocs, setUploadedDocs] = useState({});
     const [buktiBayarUrl, setBuktiBayarUrl] = useState('');
     const [isUnlockedManually, setIsUnlockedManually] = useState(false);
@@ -120,7 +121,14 @@ export default function PortalKDJ() {
                 if (data.pendaftar) {
                     setBuktiBayarUrl(data.pendaftar.bukti_bayar_url || '');
                     setUser((prev) => {
-                        const updatedUser = { ...prev, ...data.pendaftar };
+                        const updatedUser = {
+                            ...prev,
+                            ...data.pendaftar,
+                            registration_payment: data.registration_payment || null,
+                            payment_server_now: data.server_now || null,
+                            student_progress: data.student_progress || null,
+                            student_progress_documents: data.student_progress_documents || []
+                        };
                         localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
                         return updatedUser;
                     });
@@ -143,7 +151,7 @@ export default function PortalKDJ() {
 
                     const st = (data.pendaftar.status_pendaftaran || '').toLowerCase();
                     if (st === 'rejected') {
-                        setWizardStep(3);
+                        setWizardStep(4);
                     }
                 }
             }
@@ -198,6 +206,13 @@ export default function PortalKDJ() {
         cancelled = true;
     };
 }, []);
+
+    useEffect(() => {
+        if (!user?.registration_payment?.deadline_at) return undefined;
+
+        const timer = window.setInterval(() => setCountdownNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, [user?.registration_payment?.deadline_at]);
 
     useEffect(() => {
         if (!user?.no_wa) return;
@@ -313,18 +328,44 @@ export default function PortalKDJ() {
 
     const handleSaveStep = async (nextStep) => {
         const isFinalSubmit = nextStep === null;
+        const hasPaidRegistration = user?.registration_payment?.status === 'PAID'
+            || user?.status_pembayaran === 'Lunas';
+        const hasLegacyPaymentWorkflow = Boolean(user?.bukti_bayar_url)
+            || ['Menunggu Verifikasi', 'Ditolak'].includes(user?.status_pembayaran);
+        const isInitialSubmit = nextStep === 3
+            && !user?.registration_payment?.id
+            && !hasPaidRegistration
+            && !hasLegacyPaymentWorkflow;
 
-        // Validasi kelengkapan saat tombol Final Submit ditekan
+        if (isInitialSubmit) {
+            const requiredInitialFields = [
+                'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
+                'alamat_lengkap', 'asal_sekolah', 'tahun_lulus',
+                'pilihan_kampus', 'pilihan_jurusan'
+            ];
+            const missingInitialFields = requiredInitialFields.filter((field) => (
+                formData[field] === null
+                || formData[field] === undefined
+                || String(formData[field]).trim() === ''
+            ));
+            if (missingInitialFields.length > 0) {
+                alert('Lengkapi data diri, asal sekolah, tahun lulus, kampus, dan jurusan sebelum membuat tagihan.');
+                setWizardStep(1);
+                return;
+            }
+        }
+
+        // Final submit hanya untuk berkas akademik setelah pembayaran PAID.
         if (isFinalSubmit) {
-            const requiredDocs = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'];
-            const missingDocs = requiredDocs.filter((doc) => !uploadedDocs[doc]);
-            if (missingDocs.length > 0) {
-                alert(`⚠️ Mohon lengkapi dokumen wajib di Step 3 terlebih dahulu: ${missingDocs.join(', ').toUpperCase()}`);
+            if (!hasPaidRegistration) {
+                alert('Pembayaran harus dikonfirmasi Lunas oleh Admin sebelum upload dan submit berkas.');
                 setWizardStep(3);
                 return;
             }
-            if (!buktiBayarUrl) {
-                alert('⚠️ Mohon unggah bukti transfer pembayaran di Step 4 sebelum mengirim pendaftaran!');
+            const requiredDocs = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'];
+            const missingDocs = requiredDocs.filter((doc) => !uploadedDocs[doc]);
+            if (missingDocs.length > 0) {
+                alert(`Mohon lengkapi dokumen wajib di Step 4 terlebih dahulu: ${missingDocs.join(', ').toUpperCase()}`);
                 setWizardStep(4);
                 return;
             }
@@ -341,6 +382,7 @@ export default function PortalKDJ() {
                 body: JSON.stringify({
                     no_wa: user.no_wa,
                     ...formData,
+                    is_initial_submit: isInitialSubmit,
                     is_final_submit: isFinalSubmit,
                     is_revision: isRevision
                 })
@@ -351,12 +393,15 @@ export default function PortalKDJ() {
                 // Jangan kunci status pendaftaran jika baru simpan per-step (belum Final Submit)
                 const safeStatus = isFinalSubmit
                     ? (isRevision ? 'Revisi Diajukan' : (data.user?.status_pendaftaran || 'Submitted'))
-                    : (isRevision ? 'Rejected' : 'Draft');
+                    : isInitialSubmit
+                        ? (data.user?.status_pendaftaran || 'draft_berkas')
+                        : (isRevision ? 'Rejected' : 'Draft');
 
                 const updatedUser = {
                     ...user,
                     ...formData,
                     ...(data.user || {}),
+                    ...(data.payment ? { registration_payment: data.payment } : {}),
                     status_pendaftaran: safeStatus
                 };
 
@@ -418,11 +463,15 @@ if (nextStep) {
                     const updatedUser = {
                         ...user,
                         bukti_bayar_url: result.url,
-                        status_pembayaran: 'Menunggu Verifikasi'
+                        status_pembayaran: 'Menunggu Verifikasi',
+                        registration_payment: user.registration_payment
+                            ? { ...user.registration_payment, status: 'PROOF_SUBMITTED' }
+                            : user.registration_payment
                     };
                     setUser(updatedUser);
                     localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
-                    alert('✅ Bukti transfer pembayaran berhasil diunggah!');
+                    await fetchUploadedDocs(user.no_wa);
+                    alert('✅ Bukti transfer pembayaran berhasil diunggah dan menunggu pemeriksaan Admin!');
                 } else {
                     setUploadedDocs((prev) => ({ ...prev, [jenisDokumen]: result.doc }));
                     alert(`✅ Dokumen ${jenisDokumen} berhasil diunggah!`);
@@ -464,6 +513,39 @@ if (nextStep) {
 
         // Form hanya dikunci jika sudah Approved, atau sedang Menunggu Verifikasi (dan tidak dibuka manual oleh user)
         const isLocked = isApproved || (isWaitingVerification && !isUnlockedManually);
+
+        const persistedPaymentStatus = user?.registration_payment?.status
+            || (user?.status_pembayaran === 'Lunas' ? 'PAID'
+                : user?.status_pembayaran === 'Menunggu Verifikasi' ? 'PROOF_SUBMITTED'
+                    : user?.status_pembayaran === 'Ditolak' ? 'REVISION_REQUIRED'
+                        : 'PENDING_PAYMENT');
+        const deadlineMs = Date.parse(user?.registration_payment?.deadline_at || '');
+        const deadlineExpired = Number.isFinite(deadlineMs)
+            && countdownNow > 0
+            && deadlineMs <= countdownNow;
+        const paymentStatus = deadlineExpired
+            && ['PENDING_PAYMENT', 'REOPENED', 'REVISION_REQUIRED'].includes(persistedPaymentStatus)
+                ? 'EXPIRED'
+                : persistedPaymentStatus;
+        const paymentRemainingMs = Number.isFinite(deadlineMs) && countdownNow > 0
+            ? Math.max(0, deadlineMs - countdownNow)
+            : null;
+        const paymentCountdown = paymentRemainingMs === null
+            ? null
+            : [
+                Math.floor(paymentRemainingMs / 3600000),
+                Math.floor((paymentRemainingMs % 3600000) / 60000),
+                Math.floor((paymentRemainingMs % 60000) / 1000)
+            ].map((value) => String(value).padStart(2, '0')).join(':');
+        const paymentStatusLabel = ({
+            PENDING_PAYMENT: 'Menunggu Pembayaran',
+            PROOF_SUBMITTED: 'Menunggu Verifikasi Admin',
+            REVISION_REQUIRED: 'Bukti Pembayaran Perlu Revisi',
+            PAID: 'Lunas',
+            EXPIRED: 'Kedaluwarsa',
+            REOPENED: 'Tagihan Dibuka Kembali'
+        })[paymentStatus] || 'Belum Ada Tagihan';
+        const hasPaidRegistration = paymentStatus === 'PAID';
 
         const inputClass =
             'w-full px-3.5 py-2.5 bg-white text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-500 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#06315b] focus:ring-1 focus:ring-[#06315b]';
@@ -559,8 +641,8 @@ if (nextStep) {
                             {[
                                 { num: 1, label: 'Data Diri' },
                                 { num: 2, label: 'Kampus & Jurusan' },
-                                { num: 3, label: 'Upload Berkas' },
-                                { num: 4, label: 'Pembayaran' }
+                                { num: 3, label: 'Pembayaran' },
+                                { num: 4, label: 'Upload Berkas' }
                             ].map((item, idx) => (
                                 <div key={item.num} className="flex items-center flex-1 last:flex-none">
                                     <button
@@ -592,6 +674,64 @@ if (nextStep) {
                                 </div>
                             ))}
                         </div>
+
+                        {user.status_pendaftaran === 'Approved' && (
+                            <section className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5 space-y-4">
+                                <div>
+                                    <h2 className="text-base font-extrabold text-[#06315b]">Perkembangan Pendaftaran & Keberangkatan</h2>
+                                    <p className="mt-1 text-xs text-slate-600">Pantau proses setelah berkas akademik disetujui. Dokumen perjalanan akan tersedia satu per satu sesuai penerbitannya.</p>
+                                </div>
+
+                                <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                                    <p className="text-[11px] uppercase font-bold text-slate-500">Tahap utama saat ini</p>
+                                    <p className="mt-1 text-sm font-extrabold text-emerald-800">
+                                        {({
+                                            TRANSLATION_AND_CAMPUS_REGISTRATION: 'Proses Penerjemahan & Pendaftaran ke Kampus Tujuan',
+                                            WAITING_DEPARTURE: 'Menunggu Keberangkatan',
+                                            DEPARTED: 'Sudah Berangkat'
+                                        })[user.student_progress?.progress_status] || 'Proses Penerjemahan & Pendaftaran ke Kampus Tujuan'}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {[
+                                        { type: 'SUKETMAH', label: 'Suketmah' },
+                                        { type: 'LOA', label: 'Letter of Acceptance (LOA)' },
+                                        { type: 'VISA', label: 'Visa' },
+                                        { type: 'TICKET', label: 'Tiket Keberangkatan' }
+                                    ].map((item) => {
+                                        const document = (user.student_progress_documents || []).find((entry) => entry.document_type === item.type);
+                                        return (
+                                            <div key={item.type} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-slate-800">{item.label}</p>
+                                                    <p className="mt-1 text-[11px] text-slate-500">
+                                                        {document ? `Tersedia · versi ${document.version_no}` : 'Belum tersedia'}
+                                                    </p>
+                                                </div>
+                                                {document?.download_url ? (
+                                                    <a
+                                                        href={document.download_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="shrink-0 rounded-md bg-[#06315b] px-3 py-2 text-[11px] font-bold text-white"
+                                                    >
+                                                        Download
+                                                    </a>
+                                                ) : (
+                                                    <span className="shrink-0 text-[11px] font-semibold text-slate-400">Menunggu</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {user.student_progress?.updated_at && (
+                                    <p className="text-[10px] text-slate-500">
+                                        Pembaruan terakhir: {new Date(user.student_progress.updated_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
+                                    </p>
+                                )}
+                            </section>
+                        )}
 
                         {/* STEP 1: DATA DIRI */}
                         {wizardStep === 1 && (
@@ -820,11 +960,11 @@ if (nextStep) {
                             </div>
                         )}
 
-                        {/* STEP 3: UPLOAD BERKAS */}
-                        {wizardStep === 3 && (
+                        {/* STEP 4: UPLOAD BERKAS (AFTER PAYMENT CONFIRMED) */}
+                        {wizardStep === 4 && (
                             <div className="space-y-6">
                                 <div className="border-l-4 border-[#06315b] pl-3">
-                                    <h2 className="text-base font-bold text-[#06315b]">3. Unggah Dokumen Persyaratan (Attachments)</h2>
+                                    <h2 className="text-base font-bold text-[#06315b]">4. Unggah Dokumen Persyaratan (Attachments)</h2>
                                     <p className="text-xs text-slate-500">Unggah berkas awal dalam format PDF, JPG, atau PNG (maks. 5 MB). Akta Kelahiran wajib diunggah saat pendaftaran awal. Dokumen paspor tidak diunggah melalui Portal dan tidak boleh dikirim ke WhatsApp Bot. Setelah pendaftaran, kirim langsung ke WhatsApp pribadi Admin Human menggunakan nomor yang diberikan langsung oleh Admin Human, paling lambat H-45 sebelum keberangkatan.</p>
                                 </div>
 
@@ -890,21 +1030,21 @@ if (nextStep) {
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
-                                    <button type="button" onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
-                                        &lt; Kembali
+                                    <button type="button" onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
+                                        &lt; Kembali ke Pembayaran
                                     </button>
-                                    <button type="button" onClick={() => setWizardStep(4)} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] text-amber-400 text-sm font-bold rounded-lg transition shadow">
-                                        Lanjut ke Pembayaran (Step 4) &gt;
+                                    <button type="button" onClick={() => handleSaveStep(null)} disabled={loading || !((user?.registration_payment?.status === 'PAID') || user?.status_pembayaran === 'Lunas')} className="px-6 py-2.5 bg-[#06315b] hover:bg-[#042444] disabled:bg-slate-200 disabled:text-slate-500 text-amber-400 text-sm font-bold rounded-lg transition shadow">
+                                        {loading ? 'Mengirim...' : 'Submit Berkas ke Admin'}
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {/* STEP 4: PEMBAYARAN ADMINISTRASI */}
-                        {wizardStep === 4 && (
+                        {/* STEP 3: PEMBAYARAN ADMINISTRASI */}
+                        {wizardStep === 3 && (
                             <div className="space-y-6">
                                 <div className="border-l-4 border-[#06315b] pl-3">
-                                    <h2 className="text-base font-bold text-[#06315b]">4. Pembayaran Biaya Pendaftaran & Administrasi</h2>
+                                    <h2 className="text-base font-bold text-[#06315b]">3. Pembayaran Biaya Pendaftaran & Administrasi</h2>
                                     <p className="text-xs text-slate-500">Selesaikan pembayaran tagihan pendaftaran dan unggah bukti transfer Anda di bawah ini.</p>
                                 </div>
 
@@ -917,15 +1057,15 @@ if (nextStep) {
                                     <div className="flex justify-between items-center text-xs sm:text-sm text-slate-600 border-b border-slate-200 pb-3">
                                         <span>Status Pembayaran</span>
                                         <span className={`px-2.5 py-0.5 rounded font-extrabold uppercase text-[11px] ${
-                                            user.status_pembayaran === 'Lunas'
+                                            hasPaidRegistration
                                                 ? 'bg-emerald-200 text-emerald-900'
-                                                : user.status_pembayaran === 'Ditolak'
-                                                ? 'bg-red-200 text-red-900'
-                                                : user.status_pembayaran === 'Menunggu Verifikasi'
-                                                ? 'bg-amber-200 text-amber-900'
-                                                : 'bg-slate-200 text-slate-700'
+                                                : paymentStatus === 'REVISION_REQUIRED' || paymentStatus === 'EXPIRED'
+                                                    ? 'bg-red-200 text-red-900'
+                                                    : paymentStatus === 'PROOF_SUBMITTED'
+                                                        ? 'bg-amber-200 text-amber-900'
+                                                        : 'bg-slate-200 text-slate-700'
                                         }`}>
-                                            {user.status_pembayaran || 'Belum Bayar'}
+                                            {paymentStatusLabel}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center pt-1">
@@ -936,6 +1076,44 @@ if (nextStep) {
                                     </div>
                                 </div>
 
+                                {user?.registration_payment?.deadline_at && ['PENDING_PAYMENT', 'REOPENED'].includes(paymentStatus) && (
+                                    <div className={`p-4 border rounded-xl ${paymentRemainingMs === 0 ? 'border-red-300 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+                                        <div className="text-xs font-bold text-[#06315b]">Batas Pembayaran 24 Jam</div>
+                                        <div className="text-2xl font-extrabold font-mono mt-1 text-[#06315b]">
+                                            {paymentCountdown || 'Menghitung...'}
+                                        </div>
+                                        <p className="text-[11px] text-slate-600 mt-1">
+                                            {paymentRemainingMs === 0
+                                                ? 'Waktu pembayaran telah habis. Hubungi Admin jika ingin meminta pembukaan kembali tagihan.'
+                                                : `Batas akhir: ${new Date(user.registration_payment.deadline_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {paymentStatus === 'PROOF_SUBMITTED' && (
+                                    <div className="p-4 border border-amber-200 bg-amber-50 rounded-xl text-xs text-amber-900">
+                                        Bukti pembayaran telah diterima dan sedang menunggu pemeriksaan Admin. Jika dikirim sebelum batas waktu, bukti tetap dapat diperiksa meskipun proses verifikasi melewati 24 jam.
+                                    </div>
+                                )}
+
+                                {paymentStatus === 'REVISION_REQUIRED' && (
+                                    <div className="p-4 border border-red-200 bg-red-50 rounded-xl text-xs text-red-900">
+                                        Bukti pembayaran perlu diperbaiki. Unggah ulang bukti pembayaran yang benar. Alasan revisi: {user.catatan_pembayaran || 'Silakan hubungi Admin.'}
+                                    </div>
+                                )}
+
+                                {paymentStatus === 'EXPIRED' && (
+                                    <div className="p-4 border border-red-200 bg-red-50 rounded-xl text-xs text-red-900">
+                                        Batas pembayaran telah berakhir. Data pendaftaran Anda tetap tersimpan; hubungi Admin untuk meminta pembukaan kembali.
+                                    </div>
+                                )}
+
+                                {hasPaidRegistration && (
+                                    <div className="p-4 border border-emerald-200 bg-emerald-50 rounded-xl text-xs text-emerald-900">
+                                        Pembayaran sudah dikonfirmasi Lunas. Akses upload berkas akademik telah dibuka.
+                                    </div>
+                                )}
+
                                 {/* Rekening Tujuan */}
                                 <div className="p-4 bg-amber-50/70 border border-amber-300 rounded-xl">
                                     <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#06315b] mb-2">
@@ -943,8 +1121,8 @@ if (nextStep) {
                                     </h4>
                                     <div className="space-y-1 text-xs sm:text-sm text-slate-700">
                                         <p>Bank Tujuan: <strong className="text-[#06315b]">Bank Syariah Indonesia (BSI)</strong></p>
-                                        <p>Nomor Rekening: <strong className="font-mono text-base text-[#06315b] bg-white px-2 py-0.5 rounded border border-amber-200">7123456789</strong></p>
-                                        <p>Atas Nama: <strong className="text-[#06315b]">Kuliah di Jordan Official</strong></p>
+                                        <p>Nomor Rekening: <strong className="font-mono text-base text-[#06315b] bg-white px-2 py-0.5 rounded border border-amber-200">7169735128</strong></p>
+                                        <p>Atas Nama: <strong className="text-[#06315b]">Yayasan Generasi Cerdas Akhlakul Karimah</strong></p>
                                     </div>
                                     <p className="text-[11px] text-slate-500 mt-3">
                                         *Harap cantumkan Nama Lengkap dan Nomor WhatsApp Anda pada berita/catatan transfer.
@@ -972,7 +1150,7 @@ if (nextStep) {
                                         )}
                                     </div>
 
-                                    {!isLocked && (
+                                    {!isLocked && !hasPaidRegistration && !['PROOF_SUBMITTED', 'EXPIRED'].includes(paymentStatus) && (
                                         <label className={`cursor-pointer px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition shrink-0 ${
                                             uploadingDoc === 'bukti_bayar'
                                                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
@@ -993,26 +1171,24 @@ if (nextStep) {
                                 </div>
 
                                 <div className="flex justify-between pt-4 border-t border-slate-100">
-                                    <button type="button" onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
-                                        &lt; Kembali ke Berkas
+                                    <button type="button" onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
+                                        &lt; Kembali ke Data Kampus
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => handleSaveStep(null)}
-                                        disabled={loading || isLocked}
-                                        className={`px-6 py-2.5 text-sm font-extrabold rounded-lg transition shadow-md ${
-                                            isLocked
-                                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                                                : 'bg-amber-400 hover:bg-amber-300 text-[#06315b]'
-                                        }`}
+                                        onClick={() => {
+                                            if ((user?.registration_payment?.status === 'PAID') || user?.status_pembayaran === 'Lunas') {
+                                                setWizardStep(4);
+                                            } else {
+                                                alert('Upload berkas baru akan terbuka setelah Admin mengonfirmasi pembayaran Lunas.');
+                                            }
+                                        }}
+                                        disabled={loading}
+                                        className="px-6 py-2.5 text-sm font-extrabold rounded-lg transition shadow-md bg-amber-400 hover:bg-amber-300 text-[#06315b]"
                                     >
-                                        {loading
-                                            ? 'Memproses...'
-                                            : isRejected
-                                            ? '🔄 Kirim Ulang Perbaikan Berkas ✓'
-                                            : isLocked
-                                            ? '🔒 Pendaftaran Telah Dikirim'
-                                            : '🚀 Selesai & Kirim Pendaftaran ✓'}
+                                        {(user?.registration_payment?.status === 'PAID') || user?.status_pembayaran === 'Lunas'
+                                            ? 'Lanjut ke Upload Berkas (Step 4)'
+                                            : 'Menunggu Konfirmasi Pembayaran'}
                                     </button>
                                 </div>
                             </div>

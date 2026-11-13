@@ -257,6 +257,45 @@ export async function POST(req) {
       );
     }
 
+    const { data: paymentLedger, error: paymentLedgerError } = await supabase
+      .from('kdj_registration_payments')
+      .select('id, status')
+      .eq('pendaftar_id', pendaftar_id)
+      .maybeSingle();
+
+    if (paymentLedgerError) throw paymentLedgerError;
+
+    if (hasPaymentChange && paymentLedger) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'USE_PAYMENT_REVIEW_WORKFLOW',
+          message: 'Pembayaran pendaftaran baru harus diverifikasi melalui workflow bukti pembayaran, bukan perubahan status generik.'
+        },
+        { status: 409 }
+      );
+    }
+
+    if (
+      hasRegistrationChange &&
+      ['Submitted', 'Revisi Diajukan', 'Approved'].includes(status_pendaftaran)
+    ) {
+      const paymentIsPaid = paymentLedger
+        ? paymentLedger.status === 'PAID'
+        : existing.status_pembayaran === 'Lunas';
+
+      if (!paymentIsPaid) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'PAYMENT_NOT_PAID',
+            message: 'Status Submitted/Approved hanya dapat ditetapkan setelah pembayaran dikonfirmasi Lunas.'
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     if (docIds.length > 0) {
       const { data: ownedDocs, error: docLookupError } = await supabase
         .from('dokumen_pendaftar')
