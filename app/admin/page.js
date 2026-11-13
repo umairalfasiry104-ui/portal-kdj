@@ -75,11 +75,11 @@ function normalizeScheduleMethodForForm(value) {
 }
 
 function canAccessPendaftarTab(role) {
-    return ['Super Admin', 'Admin Verifikator'].includes(role);
+    return ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(role);
 }
 
 function canAccessJadwalTab(role) {
-    return ['Super Admin', 'Admin Konsultan'].includes(role);
+    return ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(role);
 }
 
 function canAccessAdminsTab(role) {
@@ -87,7 +87,7 @@ function canAccessAdminsTab(role) {
 }
 
 function canAccessLeadQualificationTab(role) {
-    return ['Super Admin', 'Admin Konsultan'].includes(role);
+    return ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(role);
 }
 
 
@@ -985,7 +985,7 @@ useEffect(() => {
                             </div>
 
                             {/* DATA LENGKAP PENDAFTAR - READ ONLY */}
-                            {['Super Admin', 'Admin Verifikator'].includes(adminUser?.role) && (
+                            {['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(adminUser?.role) && (
                             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                                 <div className="border-b border-slate-200 pb-2">
                                 <h4 className="text-xs font-extrabold text-[#06315b] uppercase">
@@ -1397,9 +1397,16 @@ useEffect(() => {
                                 </div>
                             )}
 
-                            <button type="submit" disabled={loading} className="w-full py-3 bg-[#06315b] hover:bg-[#042444] text-amber-400 font-extrabold text-sm rounded-xl transition shadow">
-                            {loading ? 'Memproses...' : 'Simpan Perubahan'}
-                            </button>
+                            {adminUser?.role !== 'Admin Viewer' && (
+                                <button type="submit" disabled={loading} className="w-full py-3 bg-[#06315b] hover:bg-[#042444] text-amber-400 font-extrabold text-sm rounded-xl transition shadow">
+                                {loading ? 'Memproses...' : 'Simpan Perubahan'}
+                                </button>
+                            )}
+                            {adminUser?.role === 'Admin Viewer' && (
+                                <div className="p-3 bg-slate-100 rounded-xl text-center text-xs font-semibold text-slate-500">
+                                    Mode Read-Only: Akun Admin Viewer tidak memiliki izin mengubah data atau status.
+                                </div>
+                            )}
                         </form>
                         ) : (
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center text-slate-400 text-sm">
@@ -1586,120 +1593,122 @@ useEffect(() => {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                                                        Update Status:
-                                                    </label>
-                                                    <select
-                                                        value={status}
-                                                        disabled={isSaving || isEditing}
-                                                        onChange={(event) => handleUpdateStatusJadwal(j.id, event.target.value)}
-                                                        className="w-full text-xs font-semibold px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none disabled:opacity-60"
-                                                    >
-                                                        <option value="Terjadwal">📅 Terjadwal</option>
-                                                        <option value="Selesai">✅ Selesai</option>
-                                                        <option value="Batal">❌ Batal</option>
-                                                    </select>
-                                                </div>
-
-                                                {!isEditing ? (
-                                                    status === 'Terjadwal' ? (
-                                                        <button
-                                                            type="button"
-                                                            disabled={isSaving}
-                                                            onClick={() => beginReschedule(j)}
-                                                            className="w-full px-3 py-2 text-xs font-bold rounded-lg border border-[#06315b] text-[#06315b] hover:bg-blue-50 disabled:opacity-60"
+                                            {adminUser?.role !== 'Admin Viewer' && (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                                                            Update Status:
+                                                        </label>
+                                                        <select
+                                                            value={status}
+                                                            disabled={isSaving || isEditing}
+                                                            onChange={(event) => handleUpdateStatusJadwal(j.id, event.target.value)}
+                                                            className="w-full text-xs font-semibold px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none disabled:opacity-60"
                                                         >
-                                                            Ubah Jadwal / Metode
-                                                        </button>
-                                                    ) : (
-                                                        <p className="text-[10px] text-slate-500">
-                                                            Reschedule hanya tersedia untuk booking berstatus Terjadwal.
-                                                        </p>
-                                                    )
-                                                ) : (
-                                                    <form
-                                                        onSubmit={(event) => handleRescheduleJadwal(event, j.id)}
-                                                        className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3"
-                                                    >
-                                                        <p className="text-xs font-extrabold text-[#06315b]">
-                                                            Jadwal Baru (WIB)
-                                                        </p>
+                                                            <option value="Terjadwal">📅 Terjadwal</option>
+                                                            <option value="Selesai">✅ Selesai</option>
+                                                            <option value="Batal">❌ Batal</option>
+                                                        </select>
+                                                    </div>
 
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                                                                Tanggal
-                                                            </label>
-                                                            <input
-                                                                type="date"
-                                                                required
-                                                                value={scheduleDraft.date}
-                                                                onChange={(event) => setScheduleDraft((current) => ({
-                                                                    ...current,
-                                                                    date: event.target.value
-                                                                }))}
-                                                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                                                                Jam Mulai
-                                                            </label>
-                                                            <input
-                                                                type="time"
-                                                                required
-                                                                step="60"
-                                                                value={scheduleDraft.time}
-                                                                onChange={(event) => setScheduleDraft((current) => ({
-                                                                    ...current,
-                                                                    time: event.target.value
-                                                                }))}
-                                                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
-                                                            />
-                                                            <p className="mt-1 text-[10px] text-slate-500">
-                                                                Senin–Jumat, 09.00–15.00 WIB. Sistem memeriksa ketersediaan kalender.
-                                                            </p>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                                                                Metode Konsultasi
-                                                            </label>
-                                                            <select
-                                                                value={scheduleDraft.metode}
-                                                                onChange={(event) => setScheduleDraft((current) => ({
-                                                                    ...current,
-                                                                    metode: event.target.value
-                                                                }))}
-                                                                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
-                                                            >
-                                                                <option value="Zoom">Zoom</option>
-                                                                <option value="Offline">Offline</option>
-                                                            </select>
-                                                        </div>
-
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                type="submit"
-                                                                disabled={isSaving}
-                                                                className="flex-1 rounded-lg bg-[#06315b] px-3 py-2 text-xs font-bold text-amber-400 disabled:opacity-60"
-                                                            >
-                                                                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
-                                                            </button>
+                                                    {!isEditing ? (
+                                                        status === 'Terjadwal' ? (
                                                             <button
                                                                 type="button"
                                                                 disabled={isSaving}
-                                                                onClick={() => setEditingScheduleId(null)}
-                                                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-60"
+                                                                onClick={() => beginReschedule(j)}
+                                                                className="w-full px-3 py-2 text-xs font-bold rounded-lg border border-[#06315b] text-[#06315b] hover:bg-blue-50 disabled:opacity-60"
                                                             >
-                                                                Batal
+                                                                Ubah Jadwal / Metode
                                                             </button>
-                                                        </div>
-                                                    </form>
-                                                )}
-                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] text-slate-500">
+                                                                Reschedule hanya tersedia untuk booking berstatus Terjadwal.
+                                                            </p>
+                                                        )
+                                                    ) : (
+                                                        <form
+                                                            onSubmit={(event) => handleRescheduleJadwal(event, j.id)}
+                                                            className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3"
+                                                        >
+                                                            <p className="text-xs font-extrabold text-[#06315b]">
+                                                                Jadwal Baru (WIB)
+                                                            </p>
+
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                                                                    Tanggal
+                                                                </label>
+                                                                <input
+                                                                    type="date"
+                                                                    required
+                                                                    value={scheduleDraft.date}
+                                                                    onChange={(event) => setScheduleDraft((current) => ({
+                                                                        ...current,
+                                                                        date: event.target.value
+                                                                    }))}
+                                                                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
+                                                                />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                                                                    Jam Mulai
+                                                                </label>
+                                                                <input
+                                                                    type="time"
+                                                                    required
+                                                                    step="60"
+                                                                    value={scheduleDraft.time}
+                                                                    onChange={(event) => setScheduleDraft((current) => ({
+                                                                        ...current,
+                                                                        time: event.target.value
+                                                                    }))}
+                                                                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
+                                                                />
+                                                                <p className="mt-1 text-[10px] text-slate-500">
+                                                                    Senin–Jumat, 09.00–15.00 WIB. Sistem memeriksa ketersediaan kalender.
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                                                                    Metode Konsultasi
+                                                                </label>
+                                                                <select
+                                                                    value={scheduleDraft.metode}
+                                                                    onChange={(event) => setScheduleDraft((current) => ({
+                                                                        ...current,
+                                                                        metode: event.target.value
+                                                                    }))}
+                                                                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
+                                                                >
+                                                                    <option value="Zoom">Zoom</option>
+                                                                    <option value="Offline">Offline</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    type="submit"
+                                                                    disabled={isSaving}
+                                                                    className="flex-1 rounded-lg bg-[#06315b] px-3 py-2 text-xs font-bold text-amber-400 disabled:opacity-60"
+                                                                >
+                                                                    {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isSaving}
+                                                                    onClick={() => setEditingScheduleId(null)}
+                                                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-60"
+                                                                >
+                                                                    Batal
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -1793,7 +1802,7 @@ useEffect(() => {
 
             {activeTab === 'system' && adminUser.role === 'Super Admin' && <AdminSystemPanel />}
             {activeTab === 'followups' && adminUser.role === 'Super Admin' && <AdminFollowupsPanel />}
-            {activeTab === 'lead-qualification' && canAccessLeadQualificationTab(adminUser.role) && <AdminLeadQualificationPanel />}
+            {activeTab === 'lead-qualification' && canAccessLeadQualificationTab(adminUser.role) && <AdminLeadQualificationPanel isReadOnly={adminUser.role === 'Admin Viewer'} />}
             {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan'].includes(adminUser.role) && <AdminDailyReportPanel isSuperAdmin={adminUser.role === 'Super Admin'} />}
 
             {/* TAB TIM ADMIN (READ-ONLY KHUSUS SUPER ADMIN) */}

@@ -19,7 +19,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(date) + ' WIB';
 }
 
-export default function AdminLeadQualificationPanel() {
+export default function AdminLeadQualificationPanel({ isReadOnly = false }) {
   const [rows, setRows] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,25 +130,34 @@ export default function AdminLeadQualificationPanel() {
               <div className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">Consent</p><b>{row.opted_out ? 'Opt-out' : row.consent_granted ? 'Aktif' : 'Belum diberikan'}</b><p className="text-xs mt-1 text-slate-600">Eligibility bukan hanya berdasarkan klasifikasi.</p></div>
               <div className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-500">Alasan blokir FU</p><b>{row.sequence_stop_reason || '—'}</b><p className="text-xs mt-1 text-slate-600">Due time tetap dihitung dari inbound terakhir.</p></div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="text-xs font-semibold text-slate-600">Klasifikasi final
-                <select value={draft.category} onChange={(e) => updateDraft(row, { category: e.target.value })} className="mt-1 w-full border rounded-lg p-2 bg-white">
-                  <option value="">Pilih klasifikasi…</option>
-                  {CATEGORIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </label>
-              <label className="text-xs font-semibold text-slate-600">Status operasional
-                <select value={draft.operational_status} onChange={(e) => updateDraft(row, { operational_status: e.target.value })} className="mt-1 w-full border rounded-lg p-2 bg-white">
-                  {OPERATIONAL.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </label>
-              <label className="text-xs font-semibold text-slate-600">Alasan keputusan (wajib)
-                <input value={draft.reason} onChange={(e) => updateDraft(row, { reason: e.target.value })} maxLength={500} placeholder="Alasan berdasarkan konteks lead" className="mt-1 w-full border rounded-lg p-2" />
-              </label>
-            </div>
-            <div className="flex justify-end">
-              <button type="button" onClick={() => void submit(row)} disabled={busy === row.id || !draft.category} className="px-4 py-2 rounded-lg bg-[#06315b] text-white text-xs font-bold disabled:opacity-50">{busy === row.id ? 'Menyimpan…' : 'Simpan Keputusan Admin'}</button>
-            </div>
+            {!isReadOnly && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <label className="text-xs font-semibold text-slate-600">Klasifikasi final
+                    <select value={draft.category} onChange={(e) => updateDraft(row, { category: e.target.value })} className="mt-1 w-full border rounded-lg p-2 bg-white">
+                      <option value="">Pilih klasifikasi…</option>
+                      {CATEGORIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Status operasional
+                    <select value={draft.operational_status} onChange={(e) => updateDraft(row, { operational_status: e.target.value })} className="mt-1 w-full border rounded-lg p-2 bg-white">
+                      {OPERATIONAL.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Alasan keputusan (wajib)
+                    <input value={draft.reason} onChange={(e) => updateDraft(row, { reason: e.target.value })} maxLength={500} placeholder="Alasan berdasarkan konteks lead" className="mt-1 w-full border rounded-lg p-2" />
+                  </label>
+                </div>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => void submit(row)} disabled={busy === row.id || !draft.category} className="px-4 py-2 rounded-lg bg-[#06315b] text-white text-xs font-bold disabled:opacity-50">{busy === row.id ? 'Menyimpan…' : 'Simpan Keputusan Admin'}</button>
+                </div>
+              </>
+            )}
+            {isReadOnly && (
+              <div className="text-xs text-slate-500 italic bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                Mode Read-Only: Akun Admin Viewer hanya dapat memantau klasifikasi dan status leads tanpa izin mengubah keputusan.
+              </div>
+            )}
           </section>
         );
       })}
