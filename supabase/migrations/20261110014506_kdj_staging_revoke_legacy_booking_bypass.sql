@@ -6,11 +6,11 @@ begin;
 
 revoke execute on function public.kdj_create_booking(
     text, text, text, timestamptz, text
-) from service_role;
+) from PUBLIC, anon, authenticated, service_role;
 
 revoke insert, update, delete, truncate
     on table public.jadwal_konsultasi
-    from service_role;
+    from PUBLIC, anon, authenticated, service_role;
 
 do $verify$
 begin
