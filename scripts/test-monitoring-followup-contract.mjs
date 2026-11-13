@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const migration = read('supabase/migrations/20261108_kdj_monitoring_followup_foundation.sql');
+const migration = read('docs/database/migration-source-archive/2026-11-12/20261108_kdj_monitoring_followup_foundation.sql');
 const systemApi = read('app/api/admin/system/route.js');
 const followupApi = read('app/api/admin/followups/route.js');
 const consentApi = read('app/api/followups/consent/route.js');

@@ -1,65 +1,94 @@
 # OD-08 Legacy Booking Caller Inventory
 
 **Audit date:** 2026-11-10 (Asia/Jakarta)
-**Target database:** KDJ Staging `pgmdurnylyuqkikbwwwy`
-**Status:** PARTIAL — do not revoke legacy permissions yet
-**Production:** not inspected or modified
+**Database in scope:** KDJ Staging `pgmdurnylyuqkikbwwwy`
+**Status:** STAGING LEGACY BYPASS CLOSED; ONE VERCEL BOT ENDPOINT REMAINS UNVERIFIABLE
+**Future VPS:** Not provisioned yet, per owner; inventory again before first deployment
+**Production:** No Production database or deployment configuration changed
 
-## Purpose and cutover rule
+## Scope and conclusion
 
-Identify every application, scheduled process, database object and deployed runtime that can invoke `public.kdj_create_booking` or write directly to `public.jadwal_konsultasi`.
+Inventoried the known Portal/Bot Git repositories and local clones, the Vercel team/project/deployment surfaces, Supabase projects/Edge Functions/cron/database functions/triggers/views, and local Windows processes.
 
-The legacy RPC EXECUTE and `service_role` table DML grants remain in place until both the VPS Bot runtime and Vercel deployments are inventoried and migrated callers are verified. This audit intentionally makes no broad revoke.
+No currently provisioned external caller to the KDJ Staging database was found that still needs direct `kdj_create_booking` EXECUTE or direct DML on `jadwal_konsultasi`.
 
-## Evidence gathered
+The Staging legacy bypass has therefore been revoked from `service_role`. The internal Scheduling V2 booking core remains available to the postgres-owned SECURITY DEFINER wrappers used by the Admin attested lane and RT-04 customer approval lane.
 
-| Area | Method / evidence | Result | Status |
+This conclusion is limited to the currently known infrastructure. The future VPS does not exist yet and is not treated as an active caller. Its Bot deployment must use a reviewed RT-04 branch and receive a new caller/permission review before being brought online.
+
+## Caller inventory evidence
+
+| Area | Method / evidence | Finding | Status |
 |---|---|---|---|
-| Portal Staging source | Search tracked source and inspect `app/api/admin/jadwal/route.js` on `feature/kdj-portal-work-20261109` | Admin CREATE was the Portal legacy caller; route now invokes `kdj_admin_create_booking_attested` only | PASS for source branch |
-| Older Portal clone | `git grep kdj_create_booking` on `C:\Users\umair\kdj-portal`, branch `main`, HEAD `81f9a5f` | No tracked source invocation remains in the clone; clone is dirty and was not modified | PASS for tracked source only |
-| Bot Staging source | Search tracked source on `feature/kdj-wa-bot-work-20261109`, HEAD `8023fb0` | No active Bot-side direct `kdj_create_booking` call; customer booking uses RT-04 approval RPCs | PASS for source branch |
-| Older Bot clone | `git grep kdj_create_booking` on `C:\Users\umair\kdj-wa-bot`, branch `main`, HEAD `6d0148c` | One direct invocation at `index.js:1320`; associated log at 1332 and comment at 1432. Clone is dirty and was not modified | FOUND — deployment relevance unknown |
-| GitHub repository scope | Enumerate accessible repositories for `umairalfasiry104-ui` | Two relevant repositories: `portal-kdj`, `kdj-wa-bot`; one unrelated repository | PASS for account-visible repositories |
-| Supabase functions | Inspect function definitions referencing `kdj_create_booking` | No other database function wrapper calling legacy RPC found | PASS |
-| Supabase Edge Functions | List Edge Functions for Staging project | No deployed Edge Functions returned | PASS |
-| Supabase cron | Inspect `cron.job` commands | One follow-up eligibility cron; no reference to legacy RPC, booking table or service_role DML | PASS |
-| Database triggers/views | Inspect non-internal triggers on `jadwal_konsultasi` and views referencing booking objects | Three lifecycle/scheduling triggers; no trigger/view invokes the legacy RPC | PASS |
-| Database query statistics | Inspect `pg_stat_statements` for legacy RPC references | 17 calls across 8 query shapes; source identity is not attributable from this view | PARTIAL — usage observed |
-| Grants | Check `has_function_privilege` and `has_table_privilege` for `service_role` | Legacy RPC EXECUTE and direct INSERT/UPDATE/DELETE/TRUNCATE on `jadwal_konsultasi` still exist | OPEN — intentionally unchanged |
-| Local process inventory | Inspect Windows processes on device UMAIR | No KDJ Bot process observed; this does not establish remote VPS state | PARTIAL |
-| VPS / process manager | No usable SSH host alias or authorized VPS shell available during this audit | Cannot inspect deployed repository, PM2/systemd/container command, environment, cron or direct SQL callers on VPS | BLOCKED — owner access required |
-| Vercel | Team authorization request generated; owner approval not completed | Cannot inspect projects, production/preview deployments, deployment branch, environment variables or other deployed callers | BLOCKED — owner approval required |
+| Portal Staging source | Inspected `app/api/admin/jadwal/route.js` on `feature/kdj-portal-work-20261109` | Admin CREATE now calls only `kdj_admin_create_booking_attested`; no direct legacy RPC in active route | PASS |
+| Portal old local clone | `C:\Users\umair\kdj-portal`, branch `main`, HEAD `81f9a5f`; tracked-source grep | No tracked `kdj_create_booking` invocation in the Admin route or tracked source. Clone was left untouched because it is dirty | PASS for tracked source |
+| Bot Staging source | `feature/kdj-wa-bot-work-20261109`, HEAD `8023fb0`; source grep | Active customer path uses RT-04 prepare/summary/submit/recovery RPCs; no direct `kdj_create_booking` call | PASS |
+| Bot old local clone | `C:\Users\umair\kdj-wa-bot`, branch `main`, HEAD `6d0148c` | One legacy RPC invocation at `index.js:1320`; local `.env` points to `oudjeospzpiwkupfutow.supabase.co`, not Staging. Clone was left untouched because it is dirty | NOT A STAGING CALLER |
+| Local Bot process | Windows process inventory on UMAIR | No active KDJ Bot runtime process observed | PASS at audit time |
+| Future VPS | Owner confirmed no VPS exists yet; creation will follow project completion | No deployed VPS Bot caller to inventory today | DEFERRED FUTURE INFRA |
+| Vercel project inventory | Team `umair-1286`; enumerate projects and deployments | One KDJ project `portal-kdj`; no Vercel KDJ Bot project | PASS |
+| Vercel Preview | Latest deployment `dpl_864kR317sePUaA7eYzTKzBgAkXoN`; branch `feature/kdj-portal-work-20261109`; commit `0f152f9` | Preview build exists due Git integration. It is not pointed to Staging; Vercel project env points to legacy Supabase `oudjeospzpiwkupfutow` | NOT A STAGING CALLER |
+| Vercel Production | Latest deployment `dpl_6qDELWXAtLiERSSp2YuwCxzVtgcf`; branch `main`; commit `b0769ee`; domain `pendaftaran.kuliahdijordan.com` | Existing Production deployment is outside the Staging caller perimeter. Its Supabase URL points to legacy project `oudjeospzpiwkupfutow` | NOT A STAGING CALLER |
+| Vercel Bot deployment | Enumerated all linked projects and deployments | No Bot-specific Vercel project/deployment exists | PASS |
+| Vercel environment variables | `filter_project_envs`, decrypt=false; public `SUPABASE_URL` was read | `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` target Production/Preview/Development and resolve to `oudjeospzpiwkupfutow`. No `KDJ_ADMIN_BOOKING_HMAC_KEY` is configured in Vercel | RISK / OUTSIDE STAGING |
+| Vercel Bot API endpoint | `WA_BOT_API_URL` exists as a sensitive variable for Production/Preview/Development; `get_project_env` and `filter_project_envs(decrypt=true)` returned an empty value | Endpoint host cannot be confirmed from available Vercel metadata. Do not assume this is absent or points to localhost; owner must confirm the hostname only. | OPEN / NOT ATTRIBUTABLE |
+| Legacy Supabase project | `get_project(oudjeospzpiwkupfutow)` | Project name `portal pendaftaran kdj`, status `INACTIVE` | OWNER REVIEW REQUIRED BEFORE ANY VERCEL ENV CHANGE |
+| KDJ Staging project | `get_project(pgmdurnylyuqkikbwwwy)` | `kdj-staging-v6`, status `ACTIVE_HEALTHY`; local Staging Portal/Bot envs point here | PASS |
+| Supabase Edge Functions | List Edge Functions for Staging | No deployed Edge Function caller returned | PASS |
+| Supabase cron | Inspect `cron.job` definitions | Follow-up eligibility cron only; no reference to the legacy booking RPC or direct booking-table DML | PASS |
+| Database functions | Search function definitions referencing `kdj_create_booking` | Only the RT-04 finalizer and Admin attested wrapper call the legacy core; both are postgres-owned SECURITY DEFINER functions | PASS |
+| Database triggers/views | Inspect non-internal triggers and views on booking table | Lifecycle/scheduling triggers only; no trigger or view calls the legacy RPC | PASS |
+| Historical RPC statistics | `pg_stat_statements`, reset since 2026-10-31 | 10 historical direct legacy RPC calls recorded under shared `service_role`; exact originating application cannot be attributed from shared key stats | HISTORICAL; NOT CURRENT PERMISSION |
+| Historical direct DML statistics | `pg_stat_statements` for DELETE on booking table | Five historical deletes were executed by role `postgres`, not `service_role` | NOT AN APPLICATION BYPASS |
 
-## Database privilege snapshot
+## Staging cutover performed
 
-At the end of the Staging review:
-- `service_role` can execute `public.kdj_create_booking`.
-- `service_role` has direct INSERT, UPDATE, DELETE and TRUNCATE privileges on `public.jadwal_konsultasi`.
-- `service_role` can execute the new `public.kdj_admin_create_booking_attested` RPC.
-- `anon` and `authenticated` cannot execute the new Admin RPC.
-- `service_role` cannot directly read the new Admin HMAC key or Admin audit tables.
-- Bootstrap functions are no longer executable by `service_role`; PostgreSQL operator role only.
+Migration: `20261110014506_kdj_staging_revoke_legacy_booking_bypass`
 
-Do not infer that the two legacy grants are unused merely because the feature branch no longer calls them.
+The migration performed only targeted permission revokes:
 
-## Cutover decision
+- Revoked `EXECUTE` on `public.kdj_create_booking(text,text,text,timestamptz,text)` from `service_role`.
+- Revoked `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` on `public.jadwal_konsultasi` from `service_role`.
+- Preserved `SELECT` on `jadwal_konsultasi`.
+- Preserved `EXECUTE` on the new Admin attested RPC and RT-04 customer approval RPCs.
+- Preserved postgres-owner execution of the Scheduling V2 core so the new SECURITY DEFINER wrappers can continue using it.
 
-**OD-08 is not closed.** The code change and database wrapper are in place, but there is still one legacy invocation in the older Bot clone and the live VPS deployment relevance is unknown. Vercel deployment inventory is also unavailable.
+Post-cutover verification:
 
-Keep all legacy grants unchanged until:
-1. VPS Bot code, process manager, deployed commit, runtime environment and cron/webhook callers are verified.
-2. Vercel project/deployment/environment inventory is completed.
-3. Every verified caller is migrated or explicitly retired.
-4. Admin UAT and RT-04 customer approval UAT pass on Staging.
-5. A targeted Change-Impact Review approves the exact function/table permission revokes.
-6. Post-revoke regression confirms no required caller lost access.
+| Check | Result |
+|---|---|
+| `service_role` EXECUTE legacy `kdj_create_booking` | false |
+| `postgres` EXECUTE core `kdj_create_booking` | true |
+| `service_role` INSERT/UPDATE/DELETE/TRUNCATE booking table | all false |
+| `service_role` SELECT booking table | true |
+| `service_role` EXECUTE Admin attested RPC | true |
+| `service_role` EXECUTE RT-04 prepare/submit RPC | true |
+| Direct legacy RPC via PostgREST with service_role | HTTP 403, SQLSTATE 42501 |
+| RT-04 recovery RPC after cutover | HMAC accepted; `NO_PENDING_APPROVAL` |
 
-## Next evidence required from owner
+## Vercel risk that is deliberately unchanged
 
-- Approve Vercel team access request, then enumerate all KDJ deployments and production/preview environment scopes.
-- Provide authorized VPS inspection access (prefer a temporary SSH public key installed through the provider console; do not send passwords or private keys in chat).
-- Identify any other server, scheduled task, webhook or integration that shares the Staging service_role key.
+Vercel currently has 19 deployment records for `portal-kdj` (13 Production and 6 Preview). Git integration automatically creates Preview builds when feature branch commits are pushed.
+
+The Preview and Production targets currently share the old Supabase URL `https://oudjeospzpiwkupfutow.supabase.co`, whose Supabase project reports `INACTIVE`. This URL is not the KDJ Staging project. No Vercel environment variable, alias, deployment, domain, or Supabase Production configuration was changed during this audit.
+
+Do not use the Vercel Preview deployment for Staging UAT until the owner decides how to separate the inactive legacy project from the future Staging/Production environment configuration. The current UAT path is the local Portal environment pointed directly at `pgmdurnylyuqkikbwwwy`.
+
+## Future VPS go-live gate
+
+Before creating or starting the future VPS Bot:
+1. Deploy only the reviewed RT-04 Bot branch or a later approved main commit containing the RT-04 customer approval service.
+2. Confirm VPS `SUPABASE_URL` targets the intended environment and the dedicated `KDJ_BOOKING_APPROVAL_HMAC_KEY` matches that environment's private key row.
+3. Verify no direct `kdj_create_booking` calls or direct DML on `jadwal_konsultasi` are present in deployed Bot code.
+4. Re-run OD-08 against PM2/systemd/container, cron, webhook, process manager and any additional runtime/provider.
+5. Keep legacy DML and RPC privileges revoked; future Bot must use RT-04 RPCs.
 
 ## Safety record
 
-No Production project, schema, data, runtime, VPS or Vercel deployment was changed. No legacy permission was revoked. No booking or WhatsApp message was created by this caller inventory.
+No Production project, Supabase project `oudjeospzpiwkupfutow`, Vercel env variable, Vercel alias, or deployment was modified. No VPS exists. No actual WhatsApp provider message was sent in the Staging UAT.
+
+## Local Bot runtime update — 10 November 2026
+
+At the OD-08 audit snapshot, no active KDJ Bot runtime process was observed. That historical statement is superseded for the current local Staging session: after dependency activation the Bot is running as Node PID 18436, local API 127.0.0.1:3001, WhatsApp READY and heartbeat OK.
+
+This is not a VPS deployment and does not change the future VPS go-live checklist. Re-run OD-08 against the future VPS/process manager, Vercel, cron, webhooks and integrations before bringing any Production Bot caller online.

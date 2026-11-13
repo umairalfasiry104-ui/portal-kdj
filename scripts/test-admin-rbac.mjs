@@ -48,7 +48,7 @@ assert.match(retryRoute, /'booking\.outbox\.retry_failed'/);
 
 const adminPage = read('app/admin/page.js');
 assert.match(adminPage, /adminUser\?\.role === 'Super Admin' && \(/, 'Panel pembayaran harus Super Admin-only.');
-assert.match(adminPage, /if \(role === 'Super Admin'\) \{\s*payload\.status_pembayaran = statusPembayaranBaru;/, 'Payload pembayaran hanya boleh dikirim Super Admin.');
+assert.match(adminPage, /if \(role === 'Super Admin' && paymentReview === null\) \{\s*\/\/ Legacy records without the new payment ledger keep the old compatibility path\.\s*payload\.status_pembayaran = statusPembayaranBaru;/, 'Payload status pembayaran generik hanya boleh dipakai Super Admin untuk record legacy tanpa payment ledger.');
 assert.match(adminPage, /x-idempotency-key/, 'CREATE jadwal manual wajib mengirim idempotency key.');
 assert.match(adminPage, /manualBookingRequest\?\.fingerprint === requestFingerprint/, 'Retry payload identik harus memakai idempotency key yang sama.');
 

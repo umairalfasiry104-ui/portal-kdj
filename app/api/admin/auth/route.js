@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import {
   getSupabaseAdmin,
-  checkRateLimit,
-  checkOtpBruteForce,
-  recordOtpFailure,
-  clearOtpFailures,
+  checkSharedRateLimit,
+  getClientIpAddress,
+  SHARED_AUTH_RATE_LIMITS,
+  checkSharedAuthLock,
+  recordSharedAuthFailure,
+  clearSharedAuthFailures,
   verifyAdminPassword,
   setAdminSessionCookie,
   clearSessionCookie,
@@ -116,15 +118,15 @@ export async function POST(req) {
     }
 
     if (action === 'login_admin') {
-      const clientIp =
-        req.headers.get('x-real-ip')?.trim() ||
-        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        'unknown';
-
-      const ipRateCheck = checkRateLimit(
-        `login-admin:ip:${clientIp}`,
-        20,
-        10 * 60 * 1000
+      const supabase = getSupabaseAdmin();
+      const clientIp = getClientIpAddress(req);
+      const ipRateLimit = SHARED_AUTH_RATE_LIMITS.adminLoginIp;
+      const ipRateCheck = await checkSharedRateLimit(
+        supabase,
+        ipRateLimit.scope,
+        clientIp,
+        ipRateLimit.maxRequests,
+        ipRateLimit.windowMs
       );
 
       if (!ipRateCheck.allowed) {
@@ -157,8 +159,11 @@ export async function POST(req) {
         );
       }
 
-      const lockKey = `admin-pwd:${parsedIdentifier.value}`;
-      const bruteCheck = checkOtpBruteForce(lockKey, 5, 10 * 60 * 1000);
+      const bruteCheck = await checkSharedAuthLock(
+        supabase,
+        'admin-login-account',
+        parsedIdentifier.value
+      );
 
       if (bruteCheck.locked) {
         return NextResponse.json(
@@ -175,7 +180,6 @@ export async function POST(req) {
         );
       }
 
-      const supabase = getSupabaseAdmin();
       let adminQuery = supabase
         .from('admins')
         .select(
@@ -207,7 +211,13 @@ export async function POST(req) {
         verifyAdminPassword(rawPassword, admin.password_hash);
 
       if (!admin || !isPasswordValid) {
-        recordOtpFailure(lockKey, 5, 10 * 60 * 1000);
+        await recordSharedAuthFailure(
+          supabase,
+          'admin-login-account',
+          parsedIdentifier.value,
+          5,
+          10 * 60 * 1000
+        );
         return NextResponse.json(
           {
             success: false,
@@ -249,7 +259,11 @@ export async function POST(req) {
         );
       }
 
-      clearOtpFailures(lockKey);
+      await clearSharedAuthFailures(
+        supabase,
+        'admin-login-account',
+        parsedIdentifier.value
+      );
 
       const response = NextResponse.json({
         success: true,

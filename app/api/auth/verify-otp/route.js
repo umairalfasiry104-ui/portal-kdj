@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import {
     getSupabaseAdmin,
     consumeOtpAtomically,
+    checkSharedRateLimit,
+    getClientIpAddress,
+    SHARED_AUTH_RATE_LIMITS,
     getPhoneCandidates,
     setUserSessionCookie,
     clearSessionCookie,
@@ -16,6 +19,8 @@ const CUSTOMER_USER_COLUMNS = [
     'id',
     'no_wa',
     'nama_lengkap',
+    'nama_orang_tua_wali',
+    'no_wa_orang_tua_wali',
     'tempat_lahir',
     'tanggal_lahir',
     'jenis_kelamin',
@@ -38,6 +43,8 @@ function toCustomerUserDto(record) {
         id: record.id,
         no_wa: record.no_wa,
         nama_lengkap: record.nama_lengkap,
+        nama_orang_tua_wali: record.nama_orang_tua_wali ?? null,
+        no_wa_orang_tua_wali: record.no_wa_orang_tua_wali ?? null,
         tempat_lahir: record.tempat_lahir,
         tanggal_lahir: record.tanggal_lahir,
         jenis_kelamin: record.jenis_kelamin,
@@ -58,6 +65,30 @@ function toCustomerUserDto(record) {
 
 export async function POST(req) {
     try {
+        const supabase = getSupabaseAdmin();
+        const clientIp = getClientIpAddress(req);
+        const ipRateLimit = SHARED_AUTH_RATE_LIMITS.customerOtpVerifyIp;
+        const ipRateCheck = await checkSharedRateLimit(
+            supabase,
+            ipRateLimit.scope,
+            clientIp,
+            ipRateLimit.maxRequests,
+            ipRateLimit.windowMs
+        );
+
+        if (!ipRateCheck.allowed) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'Terlalu banyak percobaan verifikasi dari jaringan ini. Silakan coba lagi nanti.'
+                },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': String(ipRateCheck.retryAfterSec) }
+                }
+            );
+        }
+
         const body = await req.json().catch(() => null);
         const phone = body?.phone;
         const otp = body?.otp;
@@ -69,7 +100,6 @@ export async function POST(req) {
             );
         }
 
-        const supabase = getSupabaseAdmin();
         const otpResult = await consumeOtpAtomically(supabase, phone, otp);
 
         if (!otpResult.valid) {

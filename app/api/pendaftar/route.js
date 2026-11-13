@@ -15,6 +15,8 @@ const CUSTOMER_UPDATE_COLUMNS = [
     'id',
     'no_wa',
     'nama_lengkap',
+    'nama_orang_tua_wali',
+    'no_wa_orang_tua_wali',
     'tempat_lahir',
     'tanggal_lahir',
     'jenis_kelamin',
@@ -36,6 +38,8 @@ function toCustomerUpdateDto(record) {
         id: record.id,
         no_wa: record.no_wa,
         nama_lengkap: record.nama_lengkap,
+        nama_orang_tua_wali: record.nama_orang_tua_wali ?? null,
+        no_wa_orang_tua_wali: record.no_wa_orang_tua_wali ?? null,
         tempat_lahir: record.tempat_lahir,
         tanggal_lahir: record.tanggal_lahir,
         jenis_kelamin: record.jenis_kelamin,
@@ -143,6 +147,17 @@ const invalidStringFields = stringFields.filter(
     (field) => typeof body[field] !== 'string'
 );
 
+// Field kontak orang tua/wali bersifat opsional untuk kompatibilitas payload lama.
+for (const field of ['nama_orang_tua_wali', 'no_wa_orang_tua_wali']) {
+    if (
+        Object.prototype.hasOwnProperty.call(body, field) &&
+        body[field] !== null &&
+        typeof body[field] !== 'string'
+    ) {
+        invalidStringFields.push(field);
+    }
+}
+
 // Tanggal harus string atau null.
 if (
     body.tanggal_lahir !== null &&
@@ -183,6 +198,8 @@ if (invalidStringFields.length > 0) {
 const {
     no_wa,
     nama_lengkap,
+    nama_orang_tua_wali,
+    no_wa_orang_tua_wali,
     tempat_lahir,
     tanggal_lahir,
     jenis_kelamin,
@@ -204,6 +221,23 @@ if (
             success: false,
             message: 'is_final_submit harus berupa boolean.'
         },
+        { status: 422 }
+    );
+}
+
+const is_initial_submit = body.is_initial_submit === true;
+if (
+    body.is_initial_submit !== undefined &&
+    typeof body.is_initial_submit !== 'boolean'
+) {
+    return NextResponse.json(
+        { success: false, message: 'is_initial_submit harus berupa boolean.' },
+        { status: 422 }
+    );
+}
+if (is_initial_submit && is_final_submit === true) {
+    return NextResponse.json(
+        { success: false, message: 'Submit data awal dan submit berkas harus dilakukan pada tahap terpisah.' },
         { status: 422 }
     );
 }
@@ -265,6 +299,17 @@ if (hasPayloadPhone) {
         // Validasi tipe, panjang karakter, dan enum sesuai skema database (ACT-07)
         const cleanNama = typeof nama_lengkap === 'string' ? nama_lengkap.trim() : '';
         const cleanTempatLahir = typeof tempat_lahir === 'string' ? tempat_lahir.trim() : '';
+        const hasParentName = Object.prototype.hasOwnProperty.call(body, 'nama_orang_tua_wali');
+        const hasParentPhone = Object.prototype.hasOwnProperty.call(body, 'no_wa_orang_tua_wali');
+        const cleanParentName = typeof nama_orang_tua_wali === 'string'
+            ? nama_orang_tua_wali.trim()
+            : '';
+        const rawParentPhone = typeof no_wa_orang_tua_wali === 'string'
+            ? no_wa_orang_tua_wali.trim()
+            : '';
+        const cleanParentPhone = rawParentPhone
+            ? normalizePhoneLocal(rawParentPhone)
+            : null;
         const cleanPaspor = typeof no_paspor === 'string' ? no_paspor.trim() : '';
         const cleanAlamat = typeof alamat_lengkap === 'string' ? alamat_lengkap.trim() : '';
         const cleanSekolah = typeof asal_sekolah === 'string' ? asal_sekolah.trim() : '';
@@ -274,6 +319,7 @@ if (hasPayloadPhone) {
 
         if (
             cleanNama.length > 150 ||
+            cleanParentName.length > 150 ||
             cleanTempatLahir.length > 100 ||
             cleanPaspor.length > 50 ||
             cleanSekolah.length > 150 ||
@@ -281,6 +327,13 @@ if (hasPayloadPhone) {
         ) {
             return NextResponse.json(
                 { success: false, message: 'Panjang karakter melebihi batas kolom yang diizinkan.' },
+                { status: 422 }
+            );
+        }
+
+        if (hasParentPhone && rawParentPhone && !cleanParentPhone) {
+            return NextResponse.json(
+                { success: false, message: 'Nomor WhatsApp orang tua/wali tidak valid. Gunakan nomor Indonesia 08... atau +62...' },
                 { status: 422 }
             );
         }
@@ -357,7 +410,7 @@ if (hasPayloadPhone) {
         const supabase = getSupabaseAdmin();
         const { data: currentRecord, error: fetchErr } = await supabase
             .from('pendaftar')
-            .select('id, no_wa, status_pendaftaran, bukti_bayar_url')
+            .select('id, no_wa, status_pendaftaran, status_pembayaran, bukti_bayar_url')
             // Identitas utama berasal dari UUID sesi, bukan payload browser.
             // Filter nomor tambahan mengikat ulang record ke nomor sesi.
             .eq('id', session.sub)
@@ -401,7 +454,6 @@ if (hasPayloadPhone) {
                 !cleanNama ||
                 !cleanTempatLahir ||
                 !tanggal_lahir ||
-                !cleanPaspor ||
                 !cleanAlamat ||
                 !cleanSekolah ||
                 !parsedTahunLulus
@@ -423,7 +475,7 @@ if (hasPayloadPhone) {
             if (docsErr) throw docsErr;
 
             const uploadedTypes = new Set((docs || []).map((d) => d.jenis_dokumen));
-            const requiredDocs = ['pasfoto', 'paspor', 'ijazah', 'transkrip'];
+            const requiredDocs = ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'];
             const missingDocs = requiredDocs.filter((reqDoc) => !uploadedTypes.has(reqDoc));
 
             if (missingDocs.length > 0) {
@@ -436,35 +488,53 @@ if (hasPayloadPhone) {
                 );
             }
 
-            if (!currentRecord.bukti_bayar_url) {
+            const { data: paymentRecord, error: paymentLookupError } = await supabase
+                .from('kdj_registration_payments')
+                .select('status')
+                .eq('pendaftar_id', currentRecord.id)
+                .maybeSingle();
+
+            if (paymentLookupError) throw paymentLookupError;
+
+            // Existing applicants with legacy verified Lunas status remain readable.
+            const paymentIsPaid = paymentRecord
+                ? paymentRecord.status === 'PAID'
+                : currentRecord.status_pembayaran === 'Lunas';
+
+            if (!paymentIsPaid) {
                 return NextResponse.json(
                     {
                         success: false,
-                        message: 'Bukti transfer pembayaran wajib diunggah sebelum mengirim pendaftaran.'
+                        code: 'PAYMENT_NOT_PAID',
+                        message: 'Pembayaran pendaftaran harus dikonfirmasi Lunas oleh Admin sebelum berkas dapat dikirim.'
                     },
-                    { status: 400 }
+                    { status: 403 }
                 );
             }
 
             statusBaru = isRevisionServer ? 'Revisi Diajukan' : 'Submitted';
         }
 
+        const updatePayload = {
+            nama_lengkap: cleanNama,
+            tempat_lahir: cleanTempatLahir,
+            tanggal_lahir: tanggal_lahir || null,
+            jenis_kelamin: cleanGender,
+            no_paspor: cleanPaspor,
+            alamat_lengkap: cleanAlamat,
+            asal_sekolah: cleanSekolah,
+            tahun_lulus: parsedTahunLulus,
+            pilihan_kampus: cleanKampus,
+            pilihan_jurusan: cleanJurusan,
+            status_pendaftaran: statusBaru,
+            updated_at: new Date().toISOString(),
+            ...(hasParentName ? { nama_orang_tua_wali: cleanParentName || null } : {}),
+            ...(hasParentPhone ? { no_wa_orang_tua_wali: cleanParentPhone } : {})
+        };
+
         const { data: updatedUser, error: updateErr } = await supabase
             .from('pendaftar')
-            .update({
-                nama_lengkap: cleanNama,
-                tempat_lahir: cleanTempatLahir,
-                tanggal_lahir: tanggal_lahir || null,
-                jenis_kelamin: cleanGender,
-                no_paspor: cleanPaspor,
-                alamat_lengkap: cleanAlamat,
-                asal_sekolah: cleanSekolah,
-                tahun_lulus: parsedTahunLulus,
-                pilihan_kampus: cleanKampus,
-                pilihan_jurusan: cleanJurusan,
-                status_pendaftaran: statusBaru,
-                updated_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', currentRecord.id)
             // Ulangi filter owner pada UPDATE untuk mencegah perubahan identitas
             // antara pembacaan record dan penulisan.
@@ -474,6 +544,39 @@ if (hasPayloadPhone) {
 
         if (updateErr || !updatedUser) {
             throw updateErr || new Error('Gagal memperbarui data pendaftaran.');
+        }
+
+        let payment = null;
+        if (is_initial_submit) {
+            if (isRevisionServer || isLockedStatus) {
+                return NextResponse.json(
+                    { success: false, message: 'Data awal tidak dapat disubmit ulang pada status pendaftaran saat ini.' },
+                    { status: 409 }
+                );
+            }
+
+            const { data: paymentData, error: paymentError } = await supabase.rpc(
+                'kdj_start_registration_payment',
+                { p_pendaftar_id: currentRecord.id }
+            );
+
+            if (paymentError) {
+                console.error('[-] Gagal membuat invoice pendaftaran:', paymentError.code, paymentError.message);
+                throw paymentError;
+            }
+
+            if (paymentData?.success !== true) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        code: paymentData?.code || 'PAYMENT_INVOICE_NOT_CREATED',
+                        message: paymentData?.message || 'Tagihan pembayaran belum dapat dibuat.'
+                    },
+                    { status: 409 }
+                );
+            }
+
+            payment = paymentData;
         }
 
         // Pengiriman notifikasi WA dipisahkan dari keberhasilan transaksi DB (ACT-12, ACT-13, ACT-14)
@@ -504,6 +607,7 @@ if (hasPayloadPhone) {
         return NextResponse.json({
             success: true,
             user: toCustomerUpdateDto(updatedUser),
+            ...(payment ? { payment } : {}),
             wa_notified: waNotified,
             correlation_id: correlationId
         });

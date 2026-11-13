@@ -36,3 +36,17 @@ This migration is additive. It does not yet revoke `service_role` DML or legacy 
 - Reused idempotency key with changed payload is rejected.
 - Slot conflict / invalid scheduling returns the existing Scheduling V2 domain result.
 - Audit record and booking/Outbox rollback together on a database exception.
+
+---
+
+## Current Staging cutover status — 10 November 2026
+
+This section supersedes the earlier statement in “Cutover boundary” that the legacy grants remain open, but only for the **Staging** project.
+
+- Staging migration **20261110005924** installs the Admin attested booking lane.
+- Staging migration **20261110014506** completes the legacy bypass cutover by revoking direct service_role execution of the legacy booking RPC and direct DML on public.jadwal_konsultasi.
+- Positive UAT passed for Super Admin/Admin Konsultan authorized creation, durable Admin audit, exact idempotent replay, and cancellation.
+- Negative UAT passed for tampered signature, nonce/payload mismatch, reused idempotency key with changed payload, stale session version, and inactive Admin.
+- The Staging Admin HMAC key row and local/DB key synchronization were verified without exposing key material.
+
+**Production remains separate and untouched.** These Staging grants, keys, UAT rows, and environment settings must not be assumed to exist in Production. Vercel environment alignment and a Bot VPS deployment remain release prerequisites. No deployment is authorized by this update.

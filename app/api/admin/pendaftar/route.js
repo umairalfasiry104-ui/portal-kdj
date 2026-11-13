@@ -28,7 +28,7 @@ const ALLOWED_STATUS_PEMBAYARAN = [
   'Lunas',
   'Ditolak'
 ];
-const ACADEMIC_DOC_TYPES = new Set(['pasfoto', 'paspor', 'ijazah', 'transkrip']);
+const ACADEMIC_DOC_TYPES = new Set(['pasfoto', 'paspor', 'ijazah', 'transkrip', 'akta_kelahiran']);
 const ALLOWED_DOC_STATUSES = new Set(['pending', 'approved', 'rejected']);
 
 function forbidden(message) {
@@ -53,6 +53,8 @@ function toAdminPendaftarDto(item, { canReadVerification, canReadFinance, signed
     Object.assign(result, {
       tempat_lahir: item.tempat_lahir ?? null,
       tanggal_lahir: item.tanggal_lahir ?? null,
+      nama_orang_tua_wali: item.nama_orang_tua_wali ?? null,
+      no_wa_orang_tua_wali: item.no_wa_orang_tua_wali ?? null,
       jenis_kelamin: item.jenis_kelamin ?? null,
       no_paspor: item.no_paspor ?? null,
       alamat_lengkap: item.alamat_lengkap ?? null,
@@ -91,7 +93,7 @@ export async function GET(req) {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('pendaftar')
-      .select('id, no_wa, nama_leads, nama_lengkap, pilihan_kampus, pilihan_jurusan, updated_at, tempat_lahir, tanggal_lahir, jenis_kelamin, no_paspor, alamat_lengkap, asal_sekolah, tahun_lulus, status_pendaftaran, catatan_admin, status_pembayaran, nominal_tagihan, bukti_bayar_url, dokumen_pendaftar (*)')
+      .select('id, no_wa, nama_leads, nama_lengkap, pilihan_kampus, pilihan_jurusan, updated_at, tempat_lahir, tanggal_lahir, nama_orang_tua_wali, no_wa_orang_tua_wali, jenis_kelamin, no_paspor, alamat_lengkap, asal_sekolah, tahun_lulus, status_pendaftaran, catatan_admin, status_pembayaran, nominal_tagihan, bukti_bayar_url, dokumen_pendaftar (*)')
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
@@ -253,6 +255,45 @@ export async function POST(req) {
         { success: false, message: 'Data pendaftar tidak ditemukan.' },
         { status: 404 }
       );
+    }
+
+    const { data: paymentLedger, error: paymentLedgerError } = await supabase
+      .from('kdj_registration_payments')
+      .select('id, status')
+      .eq('pendaftar_id', pendaftar_id)
+      .maybeSingle();
+
+    if (paymentLedgerError) throw paymentLedgerError;
+
+    if (hasPaymentChange && paymentLedger) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'USE_PAYMENT_REVIEW_WORKFLOW',
+          message: 'Pembayaran pendaftaran baru harus diverifikasi melalui workflow bukti pembayaran, bukan perubahan status generik.'
+        },
+        { status: 409 }
+      );
+    }
+
+    if (
+      hasRegistrationChange &&
+      ['Submitted', 'Revisi Diajukan', 'Approved'].includes(status_pendaftaran)
+    ) {
+      const paymentIsPaid = paymentLedger
+        ? paymentLedger.status === 'PAID'
+        : existing.status_pembayaran === 'Lunas';
+
+      if (!paymentIsPaid) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'PAYMENT_NOT_PAID',
+            message: 'Status Submitted/Approved hanya dapat ditetapkan setelah pembayaran dikonfirmasi Lunas.'
+          },
+          { status: 409 }
+        );
+      }
     }
 
     if (docIds.length > 0) {
