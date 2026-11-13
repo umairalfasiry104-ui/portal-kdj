@@ -902,7 +902,7 @@ useEffect(() => {
                         Follow Up
                         </button>
                     )}
-                    {['Super Admin', 'Admin Konsultan'].includes(adminUser.role) && (
+                    {['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('daily-report')}
                         className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
@@ -1803,7 +1803,7 @@ useEffect(() => {
             {activeTab === 'system' && adminUser.role === 'Super Admin' && <AdminSystemPanel />}
             {activeTab === 'followups' && adminUser.role === 'Super Admin' && <AdminFollowupsPanel />}
             {activeTab === 'lead-qualification' && canAccessLeadQualificationTab(adminUser.role) && <AdminLeadQualificationPanel isReadOnly={adminUser.role === 'Admin Viewer'} />}
-            {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan'].includes(adminUser.role) && <AdminDailyReportPanel isSuperAdmin={adminUser.role === 'Super Admin'} />}
+            {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser.role) && <AdminDailyReportPanel isSuperAdmin={adminUser.role === 'Super Admin'} />}
 
             {/* TAB TIM ADMIN (READ-ONLY KHUSUS SUPER ADMIN) */}
       {activeTab === 'admins' && canAccessAdminsTab(adminUser.role) && (

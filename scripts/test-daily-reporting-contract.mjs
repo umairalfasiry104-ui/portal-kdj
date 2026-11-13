@@ -21,7 +21,7 @@ assert.doesNotMatch(migration, /phone_local|recipient_phone|message_body|message
 
 const route = read('app/api/admin/reports/daily/route.js');
 assert.match(route, /requireAdminSession/);
-assert.match(route, /\['Super Admin', 'Admin Konsultan'\]/);
+assert.match(route, /\['Super Admin', 'Admin Konsultan'/);
 assert.match(route, /kdj_get_bot_daily_report_stats/);
 assert.match(route, /Asia\/Jakarta/);
 assert.match(route, /DAILY_REPORT_NOT_READY/);

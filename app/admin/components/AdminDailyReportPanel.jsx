@@ -12,14 +12,14 @@ function todayInJakarta() {
 }
 
 const SUMMARY_FIELDS = [
-    ['customer_inbound', 'Inbound pelanggan'],
-    ['bot_replies', 'Balasan Bot'],
-    ['human_handovers', 'Eskalasi ke Human'],
-    ['bot_resumes', 'Resume ke Bot'],
-    ['current_human_sessions', 'Sesi aktif HUMAN'],
-    ['bookings_created', 'Booking baru'],
-    ['lead_admin_actions', 'Aksi kualifikasi Admin'],
-    ['incidents_opened', 'Incident']
+    ['total_leads', 'Total Leads Baru'],
+    ['prospek', 'Leads Prospek'],
+    ['closing_today', 'Closing Lunas'],
+    ['unpaid_eod', 'Belum Lunas (EOD)'],
+    ['bookings_created', 'Booking Konsultasi'],
+    ['customer_inbound', 'Inbound Chat Pelanggan'],
+    ['bot_replies', 'Balasan Minje AI'],
+    ['human_handovers', 'Eskalasi ke Human']
 ];
 
 export default function AdminDailyReportPanel({ isSuperAdmin = false }) {
