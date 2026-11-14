@@ -7,16 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:qualification && npm run test:daily-report && npm run test:otp && npm run test:payment-account && npm run test:registration-payment-progress && npm run test:admin-daily-report-recovery && node scripts/test-departure-payments-contract.mjs",
+    "test": "npm run test:qualification && npm run test:daily-report && npm run test:otp && npm run test:payment-account && npm run test:registration-payment-progress && npm run test:admin-daily-report-recovery && node scripts/test-departure-payments-contract.mjs && npm run test:admin-password-contract",
     "test:qualification": "node scripts/test-lead-qualification-contract.mjs && node scripts/test-followup-idle-final-contract.mjs",
     "test:daily-report": "node scripts/test-daily-reporting-contract.mjs",
     "test:otp": "node scripts/test-otp-durable-contract.mjs",
     "test:payment-account": "node scripts/test-registration-payment-account.mjs",
     "test:registration-payment-progress": "node scripts/test-registration-payment-progress-contract.mjs",
-    "test:admin-daily-report-recovery": "node scripts/test-admin-daily-report-recovery.mjs"
+    "test:admin-daily-report-recovery": "node scripts/test-admin-daily-report-recovery.mjs",
+    "test:admin-password-contract": "node scripts/test-admin-password-contract.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
+    "@supabase/supabase-js": "^2.119.0",
+    "dotenv": "^18.0.10",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"

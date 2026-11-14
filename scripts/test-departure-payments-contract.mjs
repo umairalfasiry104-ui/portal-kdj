@@ -14,6 +14,7 @@ const progressRoute = read('app', 'api', 'student-progress', 'route.js');
 const page = read('app', 'page.js');
 const departureSection = read('app', 'components', 'DeparturePaymentSection.jsx');
 const adminPage = read('app', 'admin', 'page.js');
+const adminDeparturePanel = read('app', 'admin', 'components', 'AdminDepartureReviewPanel.jsx');
 
 // 1. Validasi Migration Database
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.kdj_departure_packages'));
@@ -55,8 +56,8 @@ assert.ok(page.includes("<DeparturePaymentSection"));
 assert.ok(departureSection.includes("Pilihan Paket Keberangkatan & Pembayaran Bertahap"));
 assert.ok(departureSection.includes("Sisa Pelunasan"));
 assert.ok(departureSection.includes("7169735128"));
-assert.ok(adminPage.includes("Status & Verifikasi Cicilan Paket Keberangkatan"));
-assert.ok(adminPage.includes("handleReviewDepartureInstallment"));
+assert.ok(adminDeparturePanel.includes("Status &amp; Verifikasi Cicilan Paket Keberangkatan"));
+assert.ok(adminDeparturePanel.includes("onReview"));
 console.log('[PASS] Student and Admin UI components integration.');
 
 console.log('=== ALL DEPARTURE PAYMENT & INSTALLMENT CONTRACT TESTS PASSED ===');

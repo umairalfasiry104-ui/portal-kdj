@@ -1,4 +1,4 @@
--- Secure Admin manual booking lane for RT-04 legacy caller cutover.
+﻿-- Secure Admin manual booking lane for RT-04 legacy caller cutover.
 -- Depends on 20261109171100_kdj_direct_customer_booking_approval_gate.sql.
 -- Additive only: legacy caller permissions remain unchanged until OD-08 is closed.
 
@@ -7,6 +7,7 @@ begin;
 create table if not exists private.kdj_admin_booking_attestation_keys (
     key_id text primary key,
     key_bytes bytea not null,
+    hmac_secret text not null CHECK (hmac_secret ~ '^[a-fA-F0-9]+$' AND pg_catalog.length(hmac_secret) BETWEEN 64 AND 512 AND pg_catalog.length(hmac_secret) % 2 = 0),
     status text not null default 'ACTIVE',
     created_at timestamptz not null default pg_catalog.clock_timestamp(),
     constraint kdj_admin_booking_attestation_keys_key_id
@@ -388,3 +389,5 @@ commit;
 
 -- This migration intentionally does not revoke service_role DML on jadwal_konsultasi
 -- or EXECUTE on kdj_create_booking. Complete OD-08 / VPS / Vercel inventory first.
+
+

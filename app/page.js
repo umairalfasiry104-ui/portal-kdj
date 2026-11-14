@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import DeparturePaymentSection from './components/DeparturePaymentSection';
 
@@ -8,10 +9,13 @@ import DeparturePaymentSection from './components/DeparturePaymentSection';
 function KDJLogoHeader() {
     return (
         <Link href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
-            <img
+            <Image
                 src="/logo-kdj-panjang.png"
                 alt="Kuliah di Jordan"
-                className="w-full h-auto object-cover scale-125"
+                width={256}
+                height={64}
+                priority
+                className="w-full h-auto object-contain scale-125"
             />
         </Link>
     );
@@ -22,9 +26,11 @@ function KDJLogoSquare({ size = 'md' }) {
     const dim = size === 'lg' ? 'w-24 h-24' : 'w-14 h-14';
     return (
         <div className={`${dim} rounded-2xl bg-white p-1.5 shadow-md border-2 border-slate-100 flex items-center justify-center overflow-hidden`}>
-            <img
+            <Image
                 src="/logo-kdj-square.png"
                 alt="Logo KDJ"
+                width={96}
+                height={96}
                 className="w-full h-full object-contain scale-105"
             />
         </div>
@@ -35,7 +41,7 @@ function KDJLogoSquare({ size = 'md' }) {
 function OfficialHeader({ rightAction }) {
     return (
         <header className="w-full">
-            <div className="bg-[#042444] text-slate-200 text-xs py-2 px-6 border-b border-[#0a3f73]">
+            <div className="bg-[#042444] text-slate-200 text-xs py-2 px-4 sm:px-6 border-b border-[#0a3f73]">
                 <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
                     <div className="flex items-center gap-5">
                         <span>📞 0813-6624-5544</span>
@@ -47,10 +53,10 @@ function OfficialHeader({ rightAction }) {
                 </div>
             </div>
 
-            <div className="bg-[#06315b] text-white py-3.5 px-6 shadow-md border-b-4 border-amber-400">
-                <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <div className="bg-[#06315b] text-white py-3.5 px-4 sm:px-6 shadow-md border-b-4 border-amber-400">
+                <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-3">
                     <KDJLogoHeader />
-                    {rightAction && <div>{rightAction}</div>}
+                    {rightAction && <div className="shrink-0">{rightAction}</div>}
                 </div>
             </div>
         </header>
@@ -566,7 +572,7 @@ if (nextStep) {
                     }
                 />
 
-                <div className="bg-[#06315b] text-white pt-6 pb-24 px-6 text-center">
+                <div className="bg-[#06315b] text-white pt-6 pb-24 px-4 sm:px-6 text-center">
                     <div className="w-16 h-0.5 bg-amber-400 mx-auto mb-3" />
                     <h1 className="text-xl sm:text-2xl font-extrabold uppercase tracking-wide">
                         PORTAL PENDAFTARAN MAHASISWA BARU KDJ
@@ -576,8 +582,8 @@ if (nextStep) {
                     </p>
                 </div>
 
-                <div className="max-w-6xl mx-auto px-6 -mt-14 grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
-                    <div className="lg:col-span-3 bg-white rounded-2xl shadow-md border-t-4 border-amber-400 p-8">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 -mt-14 grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10 items-start">
+                    <div className="lg:col-span-3 min-w-0 bg-white rounded-2xl shadow-md border-t-4 border-amber-400 p-6 sm:p-8">
 
                         {/* BANNER STATUS & CATATAN ADMIN */}
                         {isRejected && (
@@ -640,18 +646,19 @@ if (nextStep) {
                         )}
 
                         {/* WIZARD NAVIGATION (4 LANGKAH) */}
-                        <div className="flex items-center justify-between max-w-2xl mx-auto mb-10">
+                        <div className="flex items-start justify-between max-w-2xl mx-auto mb-10">
                             {[
                                 { num: 1, label: 'Data Diri' },
                                 { num: 2, label: 'Kampus & Jurusan' },
                                 { num: 3, label: 'Pembayaran' },
                                 { num: 4, label: 'Upload Berkas' }
                             ].map((item, idx) => (
-                                <div key={item.num} className="flex items-center flex-1 last:flex-none">
+                                <div key={item.num} className="flex items-start flex-1 last:flex-none min-w-0">
                                     <button
                                         type="button"
                                         onClick={() => setWizardStep(item.num)}
-                                        className="flex flex-col items-center group focus:outline-none"
+                                        aria-current={wizardStep === item.num ? 'step' : undefined}
+                                        className="flex flex-col items-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 rounded-lg shrink-0"
                                     >
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition ${
                                             wizardStep === item.num
@@ -662,7 +669,7 @@ if (nextStep) {
                                         }`}>
                                             {item.num}
                                         </div>
-                                        <span className={`text-xs mt-2 font-bold text-center ${
+                                        <span className={`text-[10px] sm:text-xs mt-2 font-bold text-center leading-tight max-w-[70px] sm:max-w-none ${
                                             wizardStep >= item.num ? 'text-[#06315b]' : 'text-slate-400'
                                         }`}>
                                             {item.label}
@@ -670,7 +677,7 @@ if (nextStep) {
                                     </button>
 
                                     {idx < 3 && (
-                                        <div className={`flex-1 h-0.5 mx-2 sm:mx-4 -mt-5 transition ${
+                                        <div className={`flex-1 h-0.5 mx-2 sm:mx-4 mt-5 transition ${
                                             wizardStep > item.num ? 'bg-[#06315b]' : 'bg-slate-200'
                                         }`} />
                                     )}
@@ -953,7 +960,7 @@ if (nextStep) {
                                     {followupConsentMessage && <p role="status" className="text-[10px] text-slate-600">{followupConsentMessage}</p>}
                                 </div>
 
-                                <div className="flex justify-between pt-4 border-t border-slate-100">
+                                <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(1)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali
                                     </button>
@@ -1039,7 +1046,7 @@ if (nextStep) {
                                     })}
                                 </div>
 
-                                <div className="flex justify-between pt-4 border-t border-slate-100">
+                                <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali ke Pembayaran
                                     </button>
@@ -1180,7 +1187,7 @@ if (nextStep) {
                                     )}
                                 </div>
 
-                                <div className="flex justify-between pt-4 border-t border-slate-100">
+                                <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali ke Data Kampus
                                     </button>
@@ -1206,10 +1213,10 @@ if (nextStep) {
                     </div>
 
                     {/* SIDEBAR KARTU PROFIL */}
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 min-w-0">
                         <div className="bg-white rounded-2xl shadow-md border-t-4 border-[#06315b] p-6 text-center">
                             {uploadedDocs['pasfoto'] ? (
-                                <img src={uploadedDocs['pasfoto'].file_path} alt="Foto Profil" className="w-24 h-24 rounded-full object-cover mx-auto mb-3 border-4 border-amber-400 shadow" />
+                                <Image src={uploadedDocs['pasfoto'].file_path} alt="Foto Profil" width={96} height={96} unoptimized className="w-24 h-24 rounded-full object-cover mx-auto mb-3 border-4 border-amber-400 shadow" />
                             ) : (
                                 <div className="flex justify-center mb-3">
                                     <KDJLogoSquare size="lg" />
@@ -1227,28 +1234,28 @@ if (nextStep) {
                             <p className="text-xs text-slate-500 mb-5 font-mono">{user.no_wa}</p>
 
                             <div className="border-t border-slate-100 pt-4 text-left space-y-3 text-xs">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">ID Type</span>
-                                    <span className="font-bold text-slate-700">Passport</span>
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-slate-400 shrink-0">ID Type</span>
+                                    <span className="font-bold text-slate-700 truncate text-right">Passport</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">No. Paspor</span>
-                                    <span className="font-bold text-slate-700">{formData.no_paspor || '-'}</span>
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-slate-400 shrink-0">No. Paspor</span>
+                                    <span className="font-bold text-slate-700 truncate text-right">{formData.no_paspor || '-'}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">Tgl Lahir</span>
-                                    <span className="font-bold text-slate-700">{formData.tanggal_lahir || '-'}</span>
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-slate-400 shrink-0">Tgl Lahir</span>
+                                    <span className="font-bold text-slate-700 truncate text-right">{formData.tanggal_lahir || '-'}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">Gender</span>
-                                    <span className="font-bold text-slate-700">{formData.jenis_kelamin}</span>
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-slate-400 shrink-0">Gender</span>
+                                    <span className="font-bold text-slate-700 truncate text-right">{formData.jenis_kelamin}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400">Kampus</span>
-                                    <span className="font-bold text-[#06315b] truncate max-w-[130px]">{formData.pilihan_kampus}</span>
+                                <div className="flex justify-between items-center gap-2">
+                                    <span className="text-slate-400 shrink-0">Kampus</span>
+                                    <span className="font-bold text-[#06315b] truncate text-right">{formData.pilihan_kampus}</span>
                                 </div>
-                                <div className="flex justify-between items-center pt-1">
-                                    <span className="text-slate-400">Status Berkas</span>
+                                <div className="flex justify-between items-center gap-2 pt-1">
+                                    <span className="text-slate-400 shrink-0">Status Berkas</span>
                                     <span className={`px-2.5 py-1 rounded font-extrabold uppercase text-[10px] ${
                                         isApproved ? 'bg-emerald-200 text-emerald-900' :
                                         isRejected ? 'bg-red-200 text-red-900' :
@@ -1257,8 +1264,8 @@ if (nextStep) {
                                         {user.status_pendaftaran?.replace('_', ' ') || 'Leads Baru'}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center pt-1">
-                                    <span className="text-slate-400">Pembayaran</span>
+                                <div className="flex justify-between items-center gap-2 pt-1">
+                                    <span className="text-slate-400 shrink-0">Pembayaran</span>
                                     <span className={`px-2 py-0.5 rounded font-bold uppercase text-[10px] ${
                                         user.status_pembayaran === 'Lunas' ? 'bg-emerald-100 text-emerald-800' :
                                         user.status_pembayaran === 'Menunggu Verifikasi' ? 'bg-amber-100 text-amber-800' :
@@ -1281,7 +1288,7 @@ if (nextStep) {
         <div className="min-h-screen flex flex-col bg-[#06315b]">
             <OfficialHeader />
 
-            <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
+            <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 relative">
                 <div className="text-center max-w-2xl mb-8 text-white">
                     <div className="w-16 h-0.5 bg-amber-400 mx-auto mb-4" />
                     <h1 className="text-xl sm:text-2xl font-extrabold uppercase tracking-wide">
@@ -1292,7 +1299,7 @@ if (nextStep) {
                     </p>
                 </div>
 
-                <div className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 shadow-2xl border-t-8 border-amber-400">
+                <div className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl border-t-8 border-amber-400">
                     <div className="flex flex-col items-center text-center mb-6">
                         <KDJLogoSquare size="lg" />
                         <h2 className="text-lg font-extrabold text-[#06315b] mt-3">

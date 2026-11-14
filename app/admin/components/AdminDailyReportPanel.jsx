@@ -162,8 +162,8 @@ export default function AdminDailyReportPanel({ isSuperAdmin = false }) {
     };
 
     return (
-        <main className="max-w-7xl mx-auto p-6 space-y-5">
-            <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-5 space-y-4">
+        <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+            <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-4 sm:p-5 space-y-4">
                 <div>
                     <h2 className="font-extrabold text-[#06315b] text-lg">Laporan Harian Bot → Human</h2>
                     <p className="text-xs text-slate-500 mt-1">
@@ -204,7 +204,7 @@ export default function AdminDailyReportPanel({ isSuperAdmin = false }) {
 
             {report && (
                 <>
-                    <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                    <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
                         <div className="flex flex-wrap justify-between items-center gap-2">
                             <div>
                                 <h3 className="font-extrabold text-[#06315b]">Ringkasan {report.report_date}</h3>
@@ -244,7 +244,7 @@ export default function AdminDailyReportPanel({ isSuperAdmin = false }) {
                         {copyStatus && <p role="status" className="text-xs text-slate-600">{copyStatus}</p>}
                     </section>
 
-                    <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
                         <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
                             <h3 className="font-extrabold text-[#06315b]">Teks laporan siap dibagikan</h3>
                             <span className="text-[10px] text-slate-500">Manual sharing · Tidak ada auto-send</span>
@@ -260,7 +260,7 @@ export default function AdminDailyReportPanel({ isSuperAdmin = false }) {
             )}
 
             {isSuperAdmin && (
-                <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 className="font-extrabold text-[#06315b]">Pemulihan Pengiriman Laporan Admin</h3>

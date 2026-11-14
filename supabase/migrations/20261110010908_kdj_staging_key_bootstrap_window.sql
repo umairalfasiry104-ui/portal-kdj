@@ -1,4 +1,4 @@
--- Temporary, one-use staging-only window to provision isolated RT-04 and Admin HMAC keys.
+﻿-- Temporary, one-use staging-only window to provision isolated RT-04 and Admin HMAC keys.
 -- Must be followed immediately by 20261110080100_kdj_lock_staging_key_bootstrap.sql.
 
 begin;
@@ -45,8 +45,8 @@ begin
         return pg_catalog.jsonb_build_object('ok', false, 'code', 'BOOTSTRAP_ALREADY_COMPLETED');
     end if;
 
-    insert into private.kdj_admin_booking_attestation_keys (key_id, key_bytes, status)
-    values (p_key_id, v_new_key, 'ACTIVE');
+    insert into private.kdj_admin_booking_attestation_keys (key_id, hmac_secret, key_bytes, status)
+    values (p_key_id, pg_catalog.lower(p_secret_hex), v_new_key, 'ACTIVE');
 
     return pg_catalog.jsonb_build_object('ok', true, 'code', 'KEY_PROVISIONED');
 exception
@@ -68,7 +68,7 @@ declare
     v_existing_key bytea;
     v_new_key bytea;
 begin
-    if p_key_id is distinct from 'rt04-v1'
+    if p_key_id is null or p_key_id !~ '^[A-Za-z0-9._-]{1,80}$'
        or p_secret_hex is null
        or p_secret_hex !~ '^[a-fA-F0-9]+$'
        or pg_catalog.length(p_secret_hex) < 64
@@ -96,8 +96,8 @@ begin
         return pg_catalog.jsonb_build_object('ok', false, 'code', 'BOOTSTRAP_ALREADY_COMPLETED');
     end if;
 
-    insert into private.kdj_bot_attestation_keys (key_id, key_bytes, status)
-    values (p_key_id, v_new_key, 'ACTIVE');
+    insert into private.kdj_bot_attestation_keys (key_id, hmac_secret, key_bytes, status)
+    values (p_key_id, pg_catalog.lower(p_secret_hex), v_new_key, 'ACTIVE');
 
     return pg_catalog.jsonb_build_object('ok', true, 'code', 'KEY_PROVISIONED');
 exception
@@ -117,3 +117,5 @@ grant execute on function public.kdj_bootstrap_rt04_bot_attestation_key(text, te
     to service_role;
 
 commit;
+
+

@@ -100,8 +100,8 @@ export default function AdminLeadQualificationPanel({ isReadOnly = false }) {
   };
 
   return (
-    <main className="max-w-7xl mx-auto p-6 space-y-5">
-      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-5">
+    <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-extrabold text-lg text-[#06315b]">Lead Qualification Review</h2>
@@ -114,10 +114,10 @@ export default function AdminLeadQualificationPanel({ isReadOnly = false }) {
         </div>
         {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">{error}</p>}
       </section>
-      {loading && rows.length === 0 ? <p className="text-sm text-slate-500">Memuat data lead…</p> : rows.length === 0 ? <p className="rounded-xl bg-white border p-5 text-sm text-slate-500">Belum ada lead yang masuk ke modul qualification.</p> : rows.map((row) => {
+      {loading && rows.length === 0 ? <p className="text-sm text-slate-500">Memuat data lead…</p> : rows.length === 0 ? <p className="rounded-xl bg-white border p-4 sm:p-5 text-sm text-slate-500">Belum ada lead yang masuk ke modul qualification.</p> : rows.map((row) => {
         const draft = drafts[row.id] || { category: row.qualification_status === 'CONFIRMED' ? row.confirmed_category : '', operational_status: row.confirmed_operational_status || row.recommendation_operational_status || 'NORMAL', reason: '' };
         return (
-          <section key={row.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+          <section key={row.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3">
             <div className="flex flex-wrap justify-between gap-2">
               <div>
                 <p className="font-mono font-bold text-[#06315b]">{row.phone_masked}</p>
@@ -162,7 +162,7 @@ export default function AdminLeadQualificationPanel({ isReadOnly = false }) {
         );
       })}
       {events.length > 0 && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
           <h3 className="font-extrabold text-[#06315b]">Riwayat Klasifikasi Terbaru</h3>
           <p className="text-xs text-slate-500 mt-1">Jejak rekomendasi Bot dan keputusan Admin; keputusan final tidak dapat ditulis oleh Bot.</p>
           <div className="overflow-x-auto mt-3">

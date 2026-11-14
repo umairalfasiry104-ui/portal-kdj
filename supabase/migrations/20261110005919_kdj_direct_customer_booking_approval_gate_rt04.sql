@@ -1,4 +1,4 @@
--- RT-04: durable WhatsApp customer booking approval gate.
+﻿-- RT-04: durable WhatsApp customer booking approval gate.
 -- Additive implementation. This migration does NOT cut over or revoke the legacy
 -- kdj_create_booking RPC / jadwal_konsultasi service_role DML. OD-08 plus a secure
 -- Admin booking actor lane must be closed before those bypasses can be removed.
@@ -12,6 +12,7 @@ grant usage on schema private to postgres;
 create table if not exists private.kdj_bot_attestation_keys (
     key_id text primary key,
     key_bytes bytea not null,
+    hmac_secret text not null CHECK (hmac_secret ~ '^[a-fA-F0-9]+$' AND pg_catalog.length(hmac_secret) BETWEEN 64 AND 512 AND pg_catalog.length(hmac_secret) % 2 = 0),
     status text not null default 'ACTIVE',
     valid_from timestamptz not null default pg_catalog.clock_timestamp(),
     valid_until timestamptz,
@@ -1223,3 +1224,4 @@ commit;
 -- values ('rt04-v1', decode('<64+ HEX CHARACTERS>', 'hex'), 'ACTIVE');
 --
 -- CUTOVER BLOCKERS intentionally untouched by this additive migration:
+

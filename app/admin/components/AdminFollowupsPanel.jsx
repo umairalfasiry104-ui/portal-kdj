@@ -83,8 +83,8 @@ export default function AdminFollowupsPanel() {
 
   const counts = data?.summary?.jobs_by_status || {};
   return (
-    <main className="max-w-7xl mx-auto p-6 space-y-5">
-      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-5">
+    <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-4 sm:p-5">
         <div className="flex flex-wrap justify-between items-center gap-3">
           <div>
             <h2 className="font-extrabold text-[#06315b] text-lg">Follow Up H+1 / H+3 / H+7</h2>
@@ -131,8 +131,8 @@ export default function AdminFollowupsPanel() {
       </section>
 
       {data && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-3">
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-extrabold text-[#06315b]">Kontrol Sequence per Lead</h2>
             <span className="text-[10px] text-slate-500">Stop manual hanya oleh Super Admin</span>
           </div>
@@ -157,7 +157,7 @@ export default function AdminFollowupsPanel() {
       )}
 
       {data && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
           <h2 className="font-extrabold text-[#06315b]">Antrean FU</h2>
           <p className="text-xs text-slate-500 mt-1">Nomor disamarkan. UNKNOWN tidak akan dikirim ulang otomatis.</p>
           <div className="overflow-x-auto mt-4">

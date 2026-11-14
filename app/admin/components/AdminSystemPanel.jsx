@@ -98,8 +98,8 @@ export default function AdminSystemPanel() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto p-6 space-y-5">
-      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-5">
+    <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <section className="bg-white rounded-2xl border-t-4 border-[#06315b] shadow-sm p-4 sm:p-5">
         <div className="flex flex-wrap justify-between items-center gap-3">
           <div>
             <h2 className="font-extrabold text-[#06315b] text-lg">Pemantauan Sistem KDJ</h2>
@@ -135,8 +135,8 @@ export default function AdminSystemPanel() {
       </section>
 
       {data && (
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div className="flex justify-between items-center gap-3 border-b border-slate-100 pb-3">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+          <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="font-extrabold text-[#06315b]">Incident Operasional</h2>
               <p className="text-xs text-slate-500">Acknowledge dan resolve tercatat pada incident event ledger.</p>

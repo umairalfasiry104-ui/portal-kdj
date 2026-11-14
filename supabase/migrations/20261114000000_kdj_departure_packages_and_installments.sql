@@ -330,7 +330,7 @@ BEGIN
         RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'INVALID_REVIEW_PARAMETERS';
     END IF;
 
-    IF p_action = 'REJECT' AND (p_reason IS NULL OR pg_catalog.length(pg_catalog.trim(p_reason)) < 3) THEN
+    IF p_action = 'REJECT' AND (p_reason IS NULL OR pg_catalog.length(pg_catalog.btrim(p_reason)) < 3) THEN
         RAISE EXCEPTION USING ERRCODE = '22023', MESSAGE = 'REJECTION_REASON_REQUIRED';
     END IF;
 
@@ -434,7 +434,7 @@ BEGIN
         SET status = 'REJECTED',
             verified_by = v_admin.id,
             verified_at = v_now,
-            rejection_reason = pg_catalog.trim(p_reason),
+            rejection_reason = pg_catalog.btrim(p_reason),
             updated_at = v_now
         WHERE id = v_inst.id
         RETURNING * INTO v_inst;
@@ -447,7 +447,7 @@ BEGIN
         VALUES (
             v_order.id, v_inst.id, v_order.pendaftar_id, 'INSTALLMENT_REJECTED',
             v_inst.amount_idr, v_order.paid_amount_idr, v_order.paid_amount_idr, v_order.remaining_amount_idr,
-            'ADMIN', v_admin.id, 'Ditolak: ' || pg_catalog.trim(p_reason)
+            'ADMIN', v_admin.id, 'Ditolak: ' || pg_catalog.btrim(p_reason)
         );
     END IF;
 

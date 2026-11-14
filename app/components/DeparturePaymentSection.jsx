@@ -94,7 +94,10 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success) {
-                throw new Error(data?.message || 'Gagal memilih paket.');
+                if (data?.message === 'PACKAGE_ALREADY_LOCKED_CANNOT_CHANGE') {
+                throw new Error('Paket keberangkatan sudah dikunci dan tidak dapat diubah lagi.');
+            }
+            throw new Error(data?.message || 'Gagal memilih paket.');
             }
             setOrder(data.order);
             setSelectedPkgId(data.order.package_id);
@@ -195,7 +198,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-3">
                     1. Pilih Paket Keberangkatan {order?.is_locked && <span className="text-emerald-700 text-[11px] font-normal">(Terkunci permanen karena pembayaran sudah masuk)</span>}
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {packages.map((pkg) => {
                         const isSelected = (order?.package_id || selectedPkgId) === pkg.id;
                         return (
@@ -361,7 +364,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                 <div className="space-y-2.5">
                     <h3 className="text-xs font-black text-[#06315b] uppercase">Riwayat Pembayaran Cicilan</h3>
                     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                        <table className="w-full text-left text-xs">
+                        <table className="w-full min-w-[560px] text-left text-xs">
                             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
                                 <tr>
                                     <th className="p-3">Tahap</th>

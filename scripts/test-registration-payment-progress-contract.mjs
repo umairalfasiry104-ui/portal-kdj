@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -89,7 +89,8 @@ assert.match(reportMigration, /kdj_claim_admin_daily_report_deliveries/);
 assert.match(reportMigration, /kdj_finish_admin_daily_report_delivery/);
 assert.match(reportMigration, /'UNKNOWN'/);
 assert.match(reportMigration, /LEASE_EXPIRED_TO_UNKNOWN/);
-assert.match(reportMigration, /'0 1 \* \* \*'/);
+assert.doesNotMatch(reportMigration, /cron\.schedule|kdj-admin-daily-report-generate|0 1 \* \* \*/);
+assert.match(reportMigration, /Automatic schedule intentionally omitted/);
 assert.match(reportMigration, /BOOKING_STATUS_UPDATED/);
 assert.match(reportMigration, /'Selesai'/);
 assert.match(reportMigration, /PAYMENT_VERIFIED_PAID/);

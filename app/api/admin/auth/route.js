@@ -9,6 +9,7 @@ import {
   clearSharedAuthFailures,
   verifyAdminPassword,
   setAdminSessionCookie,
+  setAdminPasswordChangeSessionCookie,
   clearSessionCookie,
   ADMIN_COOKIE_NAME,
   isCanonicalAdminRole,
@@ -65,7 +66,8 @@ function toAdminSessionClientDto(admin) {
     no_wa: admin.no_wa || null,
     nama_admin: admin.nama_admin,
     role: admin.role,
-    is_active: admin.is_active
+    is_active: admin.is_active,
+    must_change_password: admin.must_change_password === true
   };
 }
 
@@ -183,7 +185,7 @@ export async function POST(req) {
       let adminQuery = supabase
         .from('admins')
         .select(
-          'id, username, email, no_wa, nama_admin, role, password_hash, created_at, is_active, session_version'
+          'id, username, email, no_wa, nama_admin, role, password_hash, created_at, is_active, session_version, must_change_password'
         );
 
       if (parsedIdentifier.type === 'email') {
@@ -208,7 +210,7 @@ export async function POST(req) {
       const isPasswordValid =
         admin &&
         typeof admin.password_hash === 'string' &&
-        verifyAdminPassword(rawPassword, admin.password_hash);
+        await verifyAdminPassword(rawPassword, admin.password_hash);
 
       if (!admin || !isPasswordValid) {
         await recordSharedAuthFailure(
@@ -265,11 +267,18 @@ export async function POST(req) {
         parsedIdentifier.value
       );
 
+      const mustChangePassword = admin.must_change_password === true;
       const response = NextResponse.json({
         success: true,
+        must_change_password: mustChangePassword,
         admin: toAdminSessionClientDto(admin)
       });
-      setAdminSessionCookie(response, admin);
+
+      if (mustChangePassword) {
+        setAdminPasswordChangeSessionCookie(response, admin);
+      } else {
+        setAdminSessionCookie(response, admin);
+      }
       return response;
     }
 

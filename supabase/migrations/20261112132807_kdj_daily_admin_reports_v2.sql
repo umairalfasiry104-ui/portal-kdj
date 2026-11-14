@@ -1,4 +1,4 @@
--- KDJ Daily Business Report v2
+﻿-- KDJ Daily Business Report v2
 -- Additive candidate migration. Existing v1 event ledger and v1 report RPC remain unchanged.
 -- Do not apply to Staging/Production before local restore validation and separate approval.
 
@@ -940,32 +940,7 @@ GRANT EXECUTE ON FUNCTION public.kdj_finish_admin_daily_report_delivery(uuid, uu
 GRANT EXECUTE ON FUNCTION public.kdj_admin_reconcile_daily_report_delivery(uuid, text, text, uuid, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.kdj_admin_retry_failed_daily_report_delivery(uuid, text, uuid) TO service_role;
 
--- Schedule only when pg_cron already exists. Do not install/modify the extension here.
-DO $cron$
-DECLARE
-    v_existing record;
-BEGIN
-    IF pg_catalog.to_regclass('cron.job') IS NOT NULL THEN
-        SELECT jobid, schedule, command
-        INTO v_existing
-        FROM cron.job
-        WHERE jobname = 'kdj-admin-daily-report-generate'
-        LIMIT 1;
-
-        IF FOUND THEN
-            IF v_existing.schedule <> '0 1 * * *'
-               OR v_existing.command NOT LIKE '%kdj_generate_admin_daily_report%' THEN
-                RAISE EXCEPTION 'Existing kdj-admin-daily-report-generate Cron job differs from the approved 08:00 WIB schedule.';
-            END IF;
-        ELSIF pg_catalog.to_regprocedure('cron.schedule(text,text,text)') IS NOT NULL THEN
-            PERFORM cron.schedule(
-                'kdj-admin-daily-report-generate',
-                '0 1 * * *',
-                'SELECT public.kdj_generate_admin_daily_report((pg_catalog.now() AT TIME ZONE ''Asia/Jakarta'')::date - 1);'
-            );
-        END IF;
-    END IF;
-END;
-$cron$;
+-- Automatic schedule intentionally omitted: KDJ reports remain Admin-initiated only.
 
 COMMIT;
+

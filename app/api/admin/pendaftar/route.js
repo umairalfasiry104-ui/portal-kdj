@@ -136,6 +136,7 @@ export async function POST(req) {
     if (!authCheck.authorized) return authCheck.response;
 
     const role = authCheck.admin.role;
+    const canReadFinance = hasAdminPermission(role, 'pendaftar.finance.read');
     const canWriteVerification = hasAdminPermission(role, 'pendaftar.verification.write');
     const canWriteFinance = hasAdminPermission(role, 'pendaftar.finance.write');
     const canWriteAdminNote = hasAdminPermission(role, 'pendaftar.catatan_admin.write');

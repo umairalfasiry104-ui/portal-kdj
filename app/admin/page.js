@@ -7,6 +7,7 @@ import AdminFollowupsPanel from './components/AdminFollowupsPanel';
 import AdminLeadQualificationPanel from './components/AdminLeadQualificationPanel';
 import AdminDailyReportPanel from './components/AdminDailyReportPanel';
 import AdminDepartureReviewPanel from './components/AdminDepartureReviewPanel';
+import AdminPasswordManager from './components/AdminPasswordManager';
 import { KDJLogoHeader, KDJLogoSquare } from './components/AdminBranding';
 import {
     canAccessPendaftarTab,
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
     const [adminUser, setAdminUser] = useState(null);
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [mustChangePassword, setMustChangePassword] = useState(false);
     const [authMsg, setAuthMsg] = useState('');
     const [activeTab, setActiveTab] = useState('pendaftar');
     const [pendaftarList, setPendaftarList] = useState([]);
@@ -107,6 +109,11 @@ export default function AdminDashboard() {
     const fetchJadwal = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/jadwal');
+            if (res.status === 401) {
+                localStorage.removeItem('kdj_admin');
+                setAdminUser(null);
+                return;
+            }
             if (!res.ok) {
                 console.warn('API Jadwal bermasalah atau belum tersedia.');
                 return;
@@ -371,8 +378,14 @@ useEffect(() => {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setAdminUser(data.admin);
         setPassword('');
+        if (data.must_change_password === true) {
+          localStorage.removeItem('kdj_admin');
+          setAdminUser(null);
+          setMustChangePassword(true);
+          return;
+        }
+        setAdminUser(data.admin);
         localStorage.setItem('kdj_admin', JSON.stringify(data.admin));
         setActiveTab(getDefaultTabForRole(data.admin?.role));
         loadRoleScopedData(data.admin?.role);
@@ -738,19 +751,36 @@ useEffect(() => {
     setAuthMsg('');
   };
 
+  const handleAdminPasswordChanged = (updatedAdmin) => {
+    setMustChangePassword(false);
+    setAdminUser(updatedAdmin);
+    localStorage.setItem('kdj_admin', JSON.stringify(updatedAdmin));
+    setActiveTab(getDefaultTabForRole(updatedAdmin?.role));
+    loadRoleScopedData(updatedAdmin?.role);
+  };
+
     // ================= LOGIN ADMIN (USERNAME/EMAIL + PASSWORD) =================
+  if (mustChangePassword) {
+    return (
+      <AdminPasswordManager
+        required
+        onComplete={handleAdminPasswordChanged}
+      />
+    );
+  }
+
   if (!adminUser) {
     return (
       <div className="min-h-screen flex flex-col bg-[#06315b]">
-        <div className="bg-[#042444] text-slate-200 text-xs py-2 px-6 border-b border-[#0a3f73]">
-          <div className="max-w-6xl mx-auto flex justify-between items-center">
+        <div className="bg-[#042444] text-slate-200 text-xs py-2 px-4 sm:px-6 border-b border-[#0a3f73]">
+          <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
             <span>📞 0813-6624-5544 | ✉️ admin@kuliahdijordan.com</span>
             <Link href="/" className="text-amber-400 hover:underline font-semibold">&larr; Ke Portal Mahasiswa</Link>
           </div>
         </div>
 
-        <main className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-8 shadow-2xl border-t-8 border-amber-400">
+        <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+          <div className="w-full max-w-md bg-white text-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl border-t-8 border-amber-400">
             <div className="flex flex-col items-center text-center mb-6">
               <KDJLogoSquare size="lg" />
               <span className="mt-3 px-2.5 py-0.5 bg-[#06315b] text-amber-400 text-[10px] font-extrabold uppercase rounded">
@@ -815,22 +845,34 @@ useEffect(() => {
     // ================= DASHBOARD ADMIN =================
     return (
         <div className="min-h-screen bg-slate-100 text-slate-800">
-            <header className="bg-[#06315b] text-white px-6 py-3.5 flex flex-wrap justify-between items-center gap-4 shadow-md border-b-4 border-amber-400">
-                <div className="flex items-center gap-4">
-                    <KDJLogoHeader />
-                    <div>
-                        <h1 className="font-extrabold text-sm sm:text-base tracking-wide uppercase">ADMIN PANEL KDJ</h1>
-                        <p className="text-xs text-amber-400 font-semibold">
-                            Admin: {adminUser.nama_admin} ({adminUser.role})
-                        </p>
+            <header className="bg-[#06315b] text-white shadow-md border-b-4 border-amber-400">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+                    <div className="flex items-center gap-4">
+                        <KDJLogoHeader />
+                        <div>
+                            <h1 className="font-extrabold text-sm sm:text-base tracking-wide uppercase">ADMIN PANEL KDJ</h1>
+                            <p className="text-xs text-amber-400 font-semibold">
+                                Admin: {adminUser.nama_admin} ({adminUser.role})
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <AdminPasswordManager onComplete={handleAdminPasswordChanged} />
+                        <button
+                            onClick={handleLogoutAdmin}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <nav className="max-w-7xl mx-auto px-6 pb-4 flex items-center gap-2 overflow-x-auto">
                     {canAccessPendaftarTab(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('pendaftar')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'pendaftar'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -842,7 +884,7 @@ useEffect(() => {
                     {canAccessJadwalTab(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('jadwal')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'jadwal'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -854,7 +896,7 @@ useEffect(() => {
                     {canAccessAdminsTab(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('admins')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'admins'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -866,7 +908,7 @@ useEffect(() => {
                     {adminUser.role === 'Super Admin' && (
                         <button
                         onClick={() => setActiveTab('system')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'system'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -878,7 +920,7 @@ useEffect(() => {
                     {canAccessLeadQualificationTab(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('lead-qualification')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'lead-qualification'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -890,7 +932,7 @@ useEffect(() => {
                     {adminUser.role === 'Super Admin' && (
                         <button
                         onClick={() => setActiveTab('followups')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'followups'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -902,7 +944,7 @@ useEffect(() => {
                     {['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser.role) && (
                         <button
                         onClick={() => setActiveTab('daily-report')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition ${
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
                             activeTab === 'daily-report'
                             ? 'bg-amber-400 text-[#06315b] shadow'
                             : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
@@ -911,20 +953,14 @@ useEffect(() => {
                         Laporan Harian Bot
                         </button>
                     )}
-                    <button
-                        onClick={handleLogoutAdmin}
-                        className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition"
-                    >
-                        Logout
-                    </button>
-                    </div>
+                </nav>
             </header>
 
             {/* TAB PENDAFTAR */}
             {activeTab === 'pendaftar' && (
-                <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                <div className="max-w-7xl mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    <div className="lg:col-span-2 min-w-0 bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                             <h2 className="font-extrabold text-[#06315b]">Daftar Calon Mahasiswa</h2>
                             <button onClick={fetchPendaftar} className="text-xs font-bold text-[#06315b] hover:underline">
                                 🔄 Refresh Data
@@ -937,12 +973,12 @@ useEffect(() => {
                                     <div
                                         key={item.id}
                                         onClick={() => handleSelectUser(item)}
-                                        className={`p-4 cursor-pointer hover:bg-slate-50 transition flex items-center justify-between ${
+                                        className={`p-4 cursor-pointer hover:bg-slate-50 transition flex items-start sm:items-center justify-between gap-3 ${
                                             selectedUser?.id === item.id ? 'bg-amber-50/70 border-l-4 border-[#06315b]' : ''
                                         }`}
                                     >
-                                        <div>
-                                            <div className="font-extrabold text-sm text-[#06315b]">
+                                        <div className="min-w-0">
+                                            <div className="font-extrabold text-sm text-[#06315b] truncate">
                                                 {item.nama_leads || item.nama_lengkap || 'Nama belum diberikan'}
                                             </div>
                                             <div className="text-xs text-slate-600 mt-0.5">
@@ -952,7 +988,7 @@ useEffect(() => {
                                                 Berkas Portal: {(item.dokumen_pendaftar || []).filter((doc) => ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'].includes(doc.jenis_dokumen)).length} / 4 • Bayar: <strong className="text-slate-600">{item.status_pembayaran || 'Belum Bayar'}</strong>
                                             </div>
                                         </div>
-                                        <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase ${
+                                        <span className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase ${
                                             st === 'approved' ? 'bg-emerald-100 text-emerald-800' :
                                             st === 'rejected' ? 'bg-red-100 text-red-800' :
                                             st === 'revisi diajukan' ? 'bg-purple-100 text-purple-800 animate-pulse' :
@@ -966,9 +1002,9 @@ useEffect(() => {
                         </div>
                     </div>
 
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 min-w-0">
                         {selectedUser ? (
-                        <form onSubmit={handleUpdateAndNotify} className="bg-white rounded-2xl shadow-sm border-t-4 border-amber-400 p-6 space-y-5">
+                        <form onSubmit={handleUpdateAndNotify} className="bg-white rounded-2xl shadow-sm border-t-4 border-amber-400 p-4 sm:p-6 space-y-5">
                             <div className="border-b border-slate-100 pb-3">
                             <h3 className="font-extrabold text-base text-[#06315b]">
                                 {selectedUser.nama_leads || selectedUser.nama_lengkap || 'Calon Mahasiswa'}
@@ -1426,14 +1462,14 @@ useEffect(() => {
 
             {/* TAB JADWAL KONSULTASI */}
             {activeTab === 'jadwal' && (
-                <div className="max-w-6xl mx-auto p-6 space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border-t-4 border-amber-400 p-6">
-                        <div className="flex justify-between items-center mb-6">
+                <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+                    <div className="bg-white rounded-2xl shadow-sm border-t-4 border-amber-400 p-4 sm:p-6">
+                        <div className="flex flex-wrap justify-between items-start gap-3 mb-6">
                             <div>
                                 <h2 className="font-extrabold text-[#06315b] text-lg">Daftar Jadwal Konsultasi Leads</h2>
                                 <p className="text-xs text-slate-500">Kelola reservasi dan penjadwalan konsultasi calon mahasiswa.</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 {['Super Admin', 'Admin Konsultan'].includes(adminUser?.role) && (
                                     <button
                                         onClick={() => setShowAddJadwalModal(true)}
@@ -1725,8 +1761,8 @@ useEffect(() => {
 
                     {/* MODAL TAMBAH JADWAL MANUAL */}
                     {showAddJadwalModal && (
-                        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4">
+                        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                            <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
                                 <h3 className="text-base font-bold text-[#06315b]">Tambah Jadwal Konsultasi Manual</h3>
                                 <form onSubmit={handleCreateManualJadwal} className="space-y-3">
                                     <div>
@@ -1762,7 +1798,7 @@ useEffect(() => {
                                             <option value="Offline">Offline (Datang ke Kantor)</option>
                                         </select>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-600 mb-1">Tanggal</label>
                                             <input
@@ -1814,8 +1850,8 @@ useEffect(() => {
 
             {/* TAB TIM ADMIN (READ-ONLY KHUSUS SUPER ADMIN) */}
       {activeTab === 'admins' && canAccessAdminsTab(adminUser.role) && (
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] p-6">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] p-4 sm:p-6">
             <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b border-slate-100 pb-3">
               <div>
                 <h2 className="font-extrabold text-[#06315b]">Direktori Tim Admin (Read-Only)</h2>
@@ -1842,7 +1878,7 @@ useEffect(() => {
                     key={adm.id}
                     className="py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-bold text-sm text-[#06315b]">
                         {adm.nama_admin}{' '}
                         {adm.username && (

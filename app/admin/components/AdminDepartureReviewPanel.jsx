@@ -88,8 +88,8 @@ export default function AdminDepartureReviewPanel({
                             <p className="text-[11px] font-bold text-slate-700 uppercase">Riwayat &amp; Verifikasi Cicilan:</p>
                             {installments.map((inst) => (
                                 <div key={inst.id} className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                                    <div>
-                                        <div className="flex items-center gap-2">
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <span className="font-bold text-[#06315b]">Cicilan ke-{inst.installment_no}</span>
                                             <span className="font-mono font-black text-slate-900">Rp {inst.amount_idr.toLocaleString('id-ID')}</span>
                                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
