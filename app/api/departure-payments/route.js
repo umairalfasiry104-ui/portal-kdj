@@ -176,6 +176,11 @@ export async function POST(req) {
             uploadedObjectPath = `departure-payments/${pendaftarId}/${randomUUID()}.${ext}`;
             const sha256 = createHash('sha256').update(buffer).digest('hex');
 
+            // Hardening sanitasi nama file asli: hilangkan karakter path traversal dan non-alphanumeric berbahaya
+            const rawName = String(file.name || `bukti-transfer.${ext}`).trim();
+            const safeBaseName = rawName.replace(/^.*[\\/]/, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+            const safeOriginalFileName = safeBaseName.length > 0 ? safeBaseName : `bukti-transfer.${ext}`;
+
             const { error: storageError } = await supabase.storage
                 .from(STORAGE_BUCKET)
                 .upload(uploadedObjectPath, buffer, {
@@ -190,7 +195,7 @@ export async function POST(req) {
                 p_pendaftar_id: pendaftarId,
                 p_amount_idr: amountIdr,
                 p_object_path: uploadedObjectPath,
-                p_original_filename: String(file.name || `bukti-transfer.${ext}`).slice(0, 255),
+                p_original_filename: safeOriginalFileName,
                 p_mime_type: file.type,
                 p_size_bytes: file.size,
                 p_sha256: sha256

@@ -26,16 +26,23 @@ export async function POST(req) {
             return NextResponse.json({ success: false, message: 'Parameter review cicilan tidak valid.' }, { status: 400 });
         }
 
-        if (action === 'REJECT' && (!reason || reason.trim().length < 3)) {
+        const rawReason = typeof reason === 'string' ? reason.trim() : '';
+
+        if (action === 'REJECT' && rawReason.length < 3) {
             return NextResponse.json({ success: false, message: 'Alasan penolakan wajib diisi minimal 3 karakter.' }, { status: 400 });
         }
+
+        // Sanitasi & pembatasan panjang alasan penolakan (Defense against control characters & payload injection)
+        const safeReason = rawReason
+            ? rawReason.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, 500)
+            : null;
 
         const supabase = getSupabaseAdmin();
         const { data, error } = await supabase.rpc('kdj_admin_review_departure_installment', {
             p_installment_id: installment_id,
             p_action: action,
             p_actor_admin_id: auth.admin.id,
-            p_reason: reason ? reason.trim() : null
+            p_reason: safeReason
         });
 
         if (error) {
