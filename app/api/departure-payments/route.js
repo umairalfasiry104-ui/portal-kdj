@@ -26,7 +26,7 @@ function hasValidMagicBytes(buffer, mimeType) {
     return false;
 }
 
-// GET: Ambil daftar paket, pesanan aktif santri, dan riwayat cicilan
+// GET: Ambil daftar paket, pesanan aktif pendaftar, dan riwayat cicilan
 export async function GET(req) {
     try {
         const supabase = getSupabaseAdmin();
@@ -105,11 +105,11 @@ export async function GET(req) {
     }
 }
 
-// POST: Aksi Santri (Pilih Paket ATAU Upload Bukti Cicilan)
+// POST: Aksi pendaftar (Pilih Paket ATAU Upload Bukti Cicilan)
 export async function POST(req) {
     const session = await getUserSession(req);
     if (!session?.sub) {
-        return NextResponse.json({ success: false, message: 'Sesi santri tidak valid.' }, { status: 401 });
+        return NextResponse.json({ success: false, message: 'Sesi pendaftar tidak valid.' }, { status: 401 });
     }
 
     const pendaftarId = session.sub;

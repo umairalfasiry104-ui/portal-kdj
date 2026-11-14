@@ -6,96 +6,21 @@ import AdminSystemPanel from './components/AdminSystemPanel';
 import AdminFollowupsPanel from './components/AdminFollowupsPanel';
 import AdminLeadQualificationPanel from './components/AdminLeadQualificationPanel';
 import AdminDailyReportPanel from './components/AdminDailyReportPanel';
-
-function KDJLogoHeader() {
-    return (
-        <Link href="/" className="bg-white px-4 h-14 sm:h-16 w-52 sm:w-64 rounded-xl shadow-md flex items-center justify-center overflow-hidden border-2 border-amber-400/80">
-            <img
-                src="/logo-kdj-panjang.png"
-                alt="Kuliah di Jordan"
-                className="w-full h-auto object-cover scale-125"
-            />
-        </Link>
-    );
-}
-
-function KDJLogoSquare({ size = 'md' }) {
-    const dim = size === 'lg' ? 'w-24 h-24' : 'w-14 h-14';
-    return (
-        <div className={`${dim} rounded-2xl bg-white p-1.5 shadow-md border-2 border-slate-100 flex items-center justify-center overflow-hidden`}>
-            <img
-                src="/logo-kdj-square.png"
-                alt="Logo KDJ"
-                className="w-full h-full object-contain scale-105"
-            />
-        </div>
-    );
-}
-
-
-function formatJakartaDateTime(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Waktu tidak valid';
-
-    return new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        dateStyle: 'full',
-        timeStyle: 'short',
-        hourCycle: 'h23'
-    }).format(date) + ' WIB';
-}
-
-function getJakartaDateTimeParts(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return { date: '', time: '' };
-    }
-
-    const parts = Object.fromEntries(
-        new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Asia/Jakarta',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hourCycle: 'h23'
-        }).formatToParts(date).map((part) => [part.type, part.value])
-    );
-
-    return {
-        date: `${parts.year}-${parts.month}-${parts.day}`,
-        time: `${parts.hour}:${parts.minute}`
-    };
-}
-
-function normalizeScheduleMethodForForm(value) {
-    const normalized = String(value || '').trim().toUpperCase();
-    return normalized === 'ZOOM' ? 'Zoom' : 'Offline';
-}
-
-function canAccessPendaftarTab(role) {
-    return ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(role);
-}
-
-function canAccessJadwalTab(role) {
-    return ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(role);
-}
-
-function canAccessAdminsTab(role) {
-    return role === 'Super Admin';
-}
-
-function canAccessLeadQualificationTab(role) {
-    return ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(role);
-}
-
-
-function getDefaultTabForRole(role) {
-    if (canAccessPendaftarTab(role)) return 'pendaftar';
-    if (canAccessJadwalTab(role)) return 'jadwal';
-    return 'pendaftar';
-}
+import AdminDepartureReviewPanel from './components/AdminDepartureReviewPanel';
+import { KDJLogoHeader, KDJLogoSquare } from './components/AdminBranding';
+import {
+    canAccessPendaftarTab,
+    canAccessJadwalTab,
+    canAccessAdminsTab,
+    canAccessLeadQualificationTab,
+    canViewDeparturePayments,
+    getDefaultTabForRole
+} from './lib/admin-access';
+import {
+    formatJakartaDateTime,
+    getJakartaDateTimeParts,
+    normalizeScheduleMethodForForm
+} from './lib/admin-datetime';
 
 export default function AdminDashboard() {
     const [adminUser, setAdminUser] = useState(null);
@@ -479,7 +404,7 @@ useEffect(() => {
     const isApprovedApplicant = String(u.status_pendaftaran || '').toLowerCase() === 'approved';
 
     // Ambil data cicilan jika status Approved dan peran Super Admin / Admin Verifikator / Admin Viewer
-    if (isApprovedApplicant && ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(adminUser?.role)) {
+    if (isApprovedApplicant && canViewDeparturePayments(adminUser?.role)) {
       setDepartureReviewLoading(true);
       try {
         const depRes = await fetch(`/api/departure-payments?pendaftar_id=${encodeURIComponent(u.id)}`, { cache: 'no-store' });
@@ -645,9 +570,14 @@ useEffect(() => {
     }
   };
 
-  const handleReviewDepartureInstallment = async (installmentId, action) => {
+  const handleReviewDepartureInstallment = async (installmentId, action, reasonOverride) => {
     if (!selectedUser || !installmentId) return;
-    if (action === 'REJECT' && departureReviewReason.trim().length < 3) {
+
+    const effectiveReason = typeof reasonOverride === 'string'
+      ? reasonOverride.trim()
+      : departureReviewReason.trim();
+
+    if (action === 'REJECT' && effectiveReason.length < 3) {
       alert('Alasan penolakan cicilan wajib diisi minimal 3 karakter.');
       return;
     }
@@ -660,7 +590,7 @@ useEffect(() => {
         body: JSON.stringify({
           installment_id: installmentId,
           action,
-          reason: departureReviewReason.trim()
+          reason: effectiveReason
         })
       });
       const result = await res.json().catch(() => null);
@@ -1389,115 +1319,14 @@ useEffect(() => {
                             )}
 
                             {/* VERIFIKASI CICILAN PAKET KEBERANGKATAN */}
-                            {selectedUser.status_pendaftaran === 'Approved' && ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(adminUser?.role) && (
-                                <section className="rounded-2xl border-2 border-amber-400 bg-amber-50/40 p-4 sm:p-5 space-y-4">
-                                    <div className="flex items-center justify-between flex-wrap gap-2">
-                                        <h3 className="text-xs font-black text-[#06315b] uppercase">
-                                            Status & Verifikasi Cicilan Paket Keberangkatan
-                                        </h3>
-                                        {departureReviewInfo?.order && (
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                                departureReviewInfo.order.payment_status === 'PAID'
-                                                    ? 'bg-emerald-200 text-emerald-800'
-                                                    : 'bg-amber-200 text-amber-900'
-                                            }`}>
-                                                {departureReviewInfo.order.payment_status === 'PAID' ? 'LUNAS 100%' : 'BELUM LUNAS'}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {departureReviewLoading ? (
-                                        <p className="text-xs text-slate-500 italic">Memuat data pembayaran paket...</p>
-                                    ) : !departureReviewInfo?.order ? (
-                                        <p className="text-xs text-slate-500 italic">Santri belum memilih paket keberangkatan di portal.</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-white p-3 rounded-xl border border-amber-200">
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Paket</p>
-                                                    <p className="font-extrabold text-[#06315b]">{departureReviewInfo.order.package_name}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Total Biaya</p>
-                                                    <p className="font-bold text-slate-900 font-mono">Rp {departureReviewInfo.order.total_amount_idr.toLocaleString('id-ID')}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Sudah Masuk</p>
-                                                    <p className="font-bold text-emerald-700 font-mono">Rp {departureReviewInfo.order.paid_amount_idr.toLocaleString('id-ID')}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Sisa Pelunasan</p>
-                                                    <p className="font-bold text-amber-800 font-mono">Rp {departureReviewInfo.order.remaining_amount_idr.toLocaleString('id-ID')}</p>
-                                                </div>
-                                            </div>
-
-                                            {/* Daftar Cicilan */}
-                                            {departureReviewInfo.installments?.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <p className="text-[11px] font-bold text-slate-700 uppercase">Riwayat & Verifikasi Cicilan:</p>
-                                                    {departureReviewInfo.installments.map((inst) => (
-                                                        <div key={inst.id} className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-bold text-[#06315b]">Cicilan ke-{inst.installment_no}</span>
-                                                                    <span className="font-mono font-black text-slate-900">Rp {inst.amount_idr.toLocaleString('id-ID')}</span>
-                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                                                        inst.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
-                                                                        inst.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                                                                    }`}>
-                                                                        {inst.status}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                                                    Diajukan: {new Date(inst.submitted_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
-                                                                </p>
-                                                                {inst.rejection_reason && (
-                                                                    <p className="text-[10px] text-red-600 mt-0.5">Alasan tolak: &quot;{inst.rejection_reason}&quot;</p>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                {inst.receipt_url && (
-                                                                    <Link href={inst.receipt_url} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-bold text-[11px]">
-                                                                        Lihat Struk
-                                                                    </Link>
-                                                                )}
-
-                                                                {inst.status === 'PENDING_VERIFICATION' && ['Super Admin', 'Admin Verifikator'].includes(adminUser?.role) && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={reviewingInstallmentId === inst.id}
-                                                                            onClick={() => handleReviewDepartureInstallment(inst.id, 'APPROVE')}
-                                                                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-[11px] disabled:opacity-50"
-                                                                        >
-                                                                            {reviewingInstallmentId === inst.id ? 'Memproses...' : 'Setujui ✅'}
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={reviewingInstallmentId === inst.id}
-                                                                            onClick={() => {
-                                                                                const r = window.prompt('Masukkan alasan penolakan cicilan (min. 3 karakter):', '');
-                                                                                if (r && r.trim().length >= 3) {
-                                                                                    setDepartureReviewReason(r);
-                                                                                    void handleReviewDepartureInstallment(inst.id, 'REJECT');
-                                                                                }
-                                                                            }}
-                                                                            className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-[11px] disabled:opacity-50"
-                                                                        >
-                                                                            Tolak ❌
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </section>
-                            )}
+                            <AdminDepartureReviewPanel
+                                statusPendaftaran={selectedUser.status_pendaftaran}
+                                adminRole={adminUser?.role}
+                                info={departureReviewInfo}
+                                loading={departureReviewLoading}
+                                reviewingInstallmentId={reviewingInstallmentId}
+                                onReview={handleReviewDepartureInstallment}
+                            />
 
                             {/* PEMERIKSAAN DOKUMEN PERSYARATAN */}
                             {['Super Admin', 'Admin Verifikator'].includes(adminUser?.role) && (

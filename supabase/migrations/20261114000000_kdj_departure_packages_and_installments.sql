@@ -206,7 +206,7 @@ BEGIN
     VALUES (
         v_order.id, p_pendaftar_id, 'PACKAGE_SELECTED', v_order.total_amount_idr,
         0, 0, v_order.remaining_amount_idr,
-        'STUDENT', 'Santri memilih ' || v_pkg.name
+        'STUDENT', 'pendaftar memilih ' || v_pkg.name
     );
 
     RETURN pg_catalog.jsonb_build_object(
@@ -216,7 +216,7 @@ BEGIN
 END;
 $function$;
 
--- 6. FUNCTION: Catat Pengajuan Bukti Bayar Cicilan oleh Santri
+-- 6. FUNCTION: Catat Pengajuan Bukti Bayar Cicilan oleh pendaftar
 CREATE OR REPLACE FUNCTION public.kdj_submit_departure_installment(
     p_pendaftar_id uuid,
     p_amount_idr integer,

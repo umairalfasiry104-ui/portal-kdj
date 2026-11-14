@@ -61,10 +61,10 @@ export async function POST(req) {
         const installment = data.installment || {};
         const isPaid = order.payment_status === 'PAID';
 
-        // Susun Notifikasi WhatsApp ke Santri & Orang Tua / Wali
-        const santriPhone = student.no_wa;
+        // Susun Notifikasi WhatsApp ke pendaftar & Orang Tua / Wali
+        const pendaftarPhone = student.no_wa;
         const waliPhone = student.no_wa_orang_tua_wali;
-        const santriName = student.nama_lengkap || 'Calon Mahasiswa';
+        const pendaftarName = student.nama_lengkap || 'Calon Mahasiswa';
 
         let notifyNote = '';
         let notifyStatus = '';
@@ -74,7 +74,7 @@ export async function POST(req) {
             notifyNote =
                 `Alhamdulillah, pembayaran cicilan paket keberangkatan telah diverifikasi oleh Admin KDJ.\n\n` +
                 `📋 *Rincian Pembayaran:*\n` +
-                `• Nama: ${santriName}\n` +
+                `• Nama: ${pendaftarName}\n` +
                 `• Paket: ${order.package_name}\n` +
                 `• Nominal Masuk: ${formatRupiah(installment.amount_idr)}\n` +
                 `• Total Terbayar: ${formatRupiah(order.paid_amount_idr)}\n` +
@@ -91,9 +91,9 @@ export async function POST(req) {
                 `Silakan unggah ulang bukti transfer yang jelas melalui portal: pendaftaran.kuliahdijordan.com`;
         }
 
-        // Kirim WhatsApp secara asinkron ke Santri & Wali (jika nomor wali tersedia)
-        const recipientPhones = [santriPhone];
-        if (waliPhone && waliPhone !== santriPhone) {
+        // Kirim WhatsApp secara asinkron ke pendaftar & Wali (jika nomor wali tersedia)
+        const recipientPhones = [pendaftarPhone];
+        if (waliPhone && waliPhone !== pendaftarPhone) {
             recipientPhones.push(waliPhone);
         }
 
@@ -103,7 +103,7 @@ export async function POST(req) {
                     '/notify-status',
                     {
                         phone,
-                        name: santriName,
+                        name: pendaftarName,
                         status: notifyStatus,
                         note: notifyNote
                     },
