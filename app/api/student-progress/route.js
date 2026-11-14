@@ -110,6 +110,15 @@ export async function GET(req) {
 
         if (progressError) throw progressError;
 
+        // Ambil status pembayaran paket keberangkatan
+        const { data: departureOrder } = await supabase
+            .from('kdj_departure_orders')
+            .select('payment_status, total_amount_idr, paid_amount_idr, remaining_amount_idr')
+            .eq('pendaftar_id', pendaftarId)
+            .maybeSingle();
+
+        const isPackagePaid = departureOrder?.payment_status === 'PAID';
+
         const { data: documents, error: documentsError } = await supabase
             .from('kdj_student_progress_documents')
             .select('id, pendaftar_id, document_type, version_no, object_path, original_filename, mime_type, size_bytes, uploaded_at, note')
@@ -119,23 +128,40 @@ export async function GET(req) {
 
         if (documentsError) throw documentsError;
 
-        const signedDocuments = await Promise.all((documents || []).map(async (document) => ({
-            id: document.id,
-            pendaftar_id: document.pendaftar_id,
-            document_type: document.document_type,
-            version_no: document.version_no,
-            original_filename: document.original_filename,
-            mime_type: document.mime_type,
-            size_bytes: document.size_bytes,
-            uploaded_at: document.uploaded_at,
-            note: document.note,
-            download_url: await createSignedStorageUrl(supabase, document.object_path)
-        })));
+        const signedDocuments = await Promise.all((documents || []).map(async (document) => {
+            // Smart Gating: Jika viewer adalah Calon Mahasiswa dan paket belum LUNAS 100%,
+            // Suketmah dan LOA ditandai tersedia tapi download_url tidak diberikan (download_locked).
+            const isDownloadLocked = !adminContext.admin && !isPackagePaid;
+            const downloadUrl = isDownloadLocked
+                ? null
+                : await createSignedStorageUrl(supabase, document.object_path);
+
+            return {
+                id: document.id,
+                pendaftar_id: document.pendaftar_id,
+                document_type: document.document_type,
+                version_no: document.version_no,
+                original_filename: document.original_filename,
+                mime_type: document.mime_type,
+                size_bytes: document.size_bytes,
+                uploaded_at: document.uploaded_at,
+                note: document.note,
+                download_locked: isDownloadLocked,
+                lock_reason: isDownloadLocked ? 'Dokumen dapat diunduh setelah pembayaran paket keberangkatan LUNAS 100%.' : null,
+                download_url: downloadUrl
+            };
+        }));
 
         return NextResponse.json({
             success: true,
             progress,
-            documents: signedDocuments
+            documents: signedDocuments,
+            departure_payment: {
+                is_paid: isPackagePaid,
+                status: departureOrder?.payment_status || 'UNPAID',
+                paid_amount_idr: departureOrder?.paid_amount_idr || 0,
+                remaining_amount_idr: departureOrder?.remaining_amount_idr || 0
+            }
         });
     } catch (error) {
         console.error('[-] Error /api/student-progress GET:', error?.code, error?.message);
@@ -241,6 +267,25 @@ export async function POST(req) {
                 { success: false, message: 'Dokumen lanjutan hanya dapat diunggah untuk pendaftar berstatus Approved.' },
                 { status: 409 }
             );
+        }
+
+        // Smart Gating: Visa dan Tiket baru bisa diproses/diunggah Admin jika paket sudah LUNAS 100%
+        if (['VISA', 'TICKET'].includes(documentType)) {
+            const { data: departureOrder } = await supabase
+                .from('kdj_departure_orders')
+                .select('payment_status')
+                .eq('pendaftar_id', pendaftarId)
+                .maybeSingle();
+
+            if (departureOrder?.payment_status !== 'PAID') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: `Dokumen ${documentType === 'VISA' ? 'Visa' : 'Tiket Pesawat'} hanya dapat diunggah setelah calon mahasiswa melunasi paket keberangkatan 100%.`
+                    },
+                    { status: 409 }
+                );
+            }
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());

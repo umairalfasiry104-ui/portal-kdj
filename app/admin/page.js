@@ -137,6 +137,12 @@ export default function AdminDashboard() {
     const [studentProgressLoading, setStudentProgressLoading] = useState(false);
     const [studentProgressReason, setStudentProgressReason] = useState('');
     const [uploadingProgressDocument, setUploadingProgressDocument] = useState('');
+
+    // State Verifikasi Cicilan Paket Keberangkatan
+    const [departureReviewInfo, setDepartureReviewInfo] = useState(null);
+    const [departureReviewLoading, setDepartureReviewLoading] = useState(false);
+    const [departureReviewReason, setDepartureReviewReason] = useState('');
+    const [reviewingInstallmentId, setReviewingInstallmentId] = useState(null);
     const [catatanAdmin, setCatatanAdmin] = useState('');
     const [catatanPembayaran, setCatatanPembayaran] = useState('');
     const [docUpdates, setDocUpdates] = useState([]);
@@ -466,10 +472,29 @@ useEffect(() => {
     setPaymentReopenDeadline('');
     setStudentProgressInfo(undefined);
     setStudentProgressReason('');
-
-    if (adminUser?.role !== 'Super Admin') return;
+    setDepartureReviewInfo(null);
+    setDepartureReviewReason('');
+    setReviewingInstallmentId(null);
 
     const isApprovedApplicant = String(u.status_pendaftaran || '').toLowerCase() === 'approved';
+
+    // Ambil data cicilan jika status Approved dan peran Super Admin / Admin Verifikator / Admin Viewer
+    if (isApprovedApplicant && ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(adminUser?.role)) {
+      setDepartureReviewLoading(true);
+      try {
+        const depRes = await fetch(`/api/departure-payments?pendaftar_id=${encodeURIComponent(u.id)}`, { cache: 'no-store' });
+        const depData = await depRes.json().catch(() => null);
+        if (depData?.success) {
+          setDepartureReviewInfo(depData);
+        }
+      } catch (depErr) {
+        console.error('Gagal memuat departure review:', depErr);
+      } finally {
+        setDepartureReviewLoading(false);
+      }
+    }
+
+    if (adminUser?.role !== 'Super Admin') return;
     if (isApprovedApplicant) {
       setStudentProgressLoading(true);
       try {
@@ -617,6 +642,48 @@ useEffect(() => {
       alert(error.message || 'Terjadi kesalahan saat verifikasi pembayaran.');
     } finally {
       setPaymentReviewLoading(false);
+    }
+  };
+
+  const handleReviewDepartureInstallment = async (installmentId, action) => {
+    if (!selectedUser || !installmentId) return;
+    if (action === 'REJECT' && departureReviewReason.trim().length < 3) {
+      alert('Alasan penolakan cicilan wajib diisi minimal 3 karakter.');
+      return;
+    }
+
+    setReviewingInstallmentId(installmentId);
+    try {
+      const res = await fetch('/api/admin/departure-payments/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          installment_id: installmentId,
+          action,
+          reason: departureReviewReason.trim()
+        })
+      });
+      const result = await res.json().catch(() => null);
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.message || 'Gagal memverifikasi cicilan.');
+      }
+
+      alert(action === 'APPROVE' ? '✅ Cicilan berhasil diverifikasi! Notifikasi WhatsApp telah dikirim.' : 'Bukti cicilan ditolak.');
+      setDepartureReviewReason('');
+
+      // Reload data
+      const depRes = await fetch(`/api/departure-payments?pendaftar_id=${encodeURIComponent(selectedUser.id)}`, { cache: 'no-store' });
+      const depData = await depRes.json().catch(() => null);
+      if (depData?.success) {
+        setDepartureReviewInfo(depData);
+      }
+      if (adminUser?.role === 'Super Admin') {
+        await reloadStudentProgress(selectedUser.id);
+      }
+    } catch (err) {
+      alert(err.message || 'Terjadi kesalahan.');
+    } finally {
+      setReviewingInstallmentId(null);
     }
   };
 
@@ -1317,6 +1384,117 @@ useEffect(() => {
                                                 </p>
                                             </div>
                                         </>
+                                    )}
+                                </section>
+                            )}
+
+                            {/* VERIFIKASI CICILAN PAKET KEBERANGKATAN */}
+                            {selectedUser.status_pendaftaran === 'Approved' && ['Super Admin', 'Admin Verifikator', 'Admin Viewer'].includes(adminUser?.role) && (
+                                <section className="rounded-2xl border-2 border-amber-400 bg-amber-50/40 p-4 sm:p-5 space-y-4">
+                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                        <h3 className="text-xs font-black text-[#06315b] uppercase">
+                                            Status & Verifikasi Cicilan Paket Keberangkatan
+                                        </h3>
+                                        {departureReviewInfo?.order && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                                departureReviewInfo.order.payment_status === 'PAID'
+                                                    ? 'bg-emerald-200 text-emerald-800'
+                                                    : 'bg-amber-200 text-amber-900'
+                                            }`}>
+                                                {departureReviewInfo.order.payment_status === 'PAID' ? 'LUNAS 100%' : 'BELUM LUNAS'}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {departureReviewLoading ? (
+                                        <p className="text-xs text-slate-500 italic">Memuat data pembayaran paket...</p>
+                                    ) : !departureReviewInfo?.order ? (
+                                        <p className="text-xs text-slate-500 italic">Santri belum memilih paket keberangkatan di portal.</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-white p-3 rounded-xl border border-amber-200">
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Paket</p>
+                                                    <p className="font-extrabold text-[#06315b]">{departureReviewInfo.order.package_name}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Total Biaya</p>
+                                                    <p className="font-bold text-slate-900 font-mono">Rp {departureReviewInfo.order.total_amount_idr.toLocaleString('id-ID')}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Sudah Masuk</p>
+                                                    <p className="font-bold text-emerald-700 font-mono">Rp {departureReviewInfo.order.paid_amount_idr.toLocaleString('id-ID')}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Sisa Pelunasan</p>
+                                                    <p className="font-bold text-amber-800 font-mono">Rp {departureReviewInfo.order.remaining_amount_idr.toLocaleString('id-ID')}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Daftar Cicilan */}
+                                            {departureReviewInfo.installments?.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-[11px] font-bold text-slate-700 uppercase">Riwayat & Verifikasi Cicilan:</p>
+                                                    {departureReviewInfo.installments.map((inst) => (
+                                                        <div key={inst.id} className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold text-[#06315b]">Cicilan ke-{inst.installment_no}</span>
+                                                                    <span className="font-mono font-black text-slate-900">Rp {inst.amount_idr.toLocaleString('id-ID')}</span>
+                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                                        inst.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
+                                                                        inst.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                                                    }`}>
+                                                                        {inst.status}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                    Diajukan: {new Date(inst.submitted_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
+                                                                </p>
+                                                                {inst.rejection_reason && (
+                                                                    <p className="text-[10px] text-red-600 mt-0.5">Alasan tolak: "{inst.rejection_reason}"</p>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                {inst.receipt_url && (
+                                                                    <Link href={inst.receipt_url} target="_blank" rel="noreferrer" className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-bold text-[11px]">
+                                                                        Lihat Struk
+                                                                    </Link>
+                                                                )}
+
+                                                                {inst.status === 'PENDING_VERIFICATION' && ['Super Admin', 'Admin Verifikator'].includes(adminUser?.role) && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={reviewingInstallmentId === inst.id}
+                                                                            onClick={() => handleReviewDepartureInstallment(inst.id, 'APPROVE')}
+                                                                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-[11px] disabled:opacity-50"
+                                                                        >
+                                                                            {reviewingInstallmentId === inst.id ? 'Memproses...' : 'Setujui ✅'}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={reviewingInstallmentId === inst.id}
+                                                                            onClick={() => {
+                                                                                const r = window.prompt('Masukkan alasan penolakan cicilan (min. 3 karakter):', '');
+                                                                                if (r && r.trim().length >= 3) {
+                                                                                    setDepartureReviewReason(r);
+                                                                                    void handleReviewDepartureInstallment(inst.id, 'REJECT');
+                                                                                }
+                                                                            }}
+                                                                            className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-[11px] disabled:opacity-50"
+                                                                        >
+                                                                            Tolak ❌
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </section>
                             )}
