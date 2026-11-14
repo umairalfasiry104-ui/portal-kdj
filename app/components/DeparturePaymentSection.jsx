@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 function formatRupiah(num) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
@@ -20,7 +20,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
     const [installmentAmount, setInstallmentAmount] = useState('');
     const [receiptFile, setReceiptFile] = useState(null);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
@@ -33,7 +33,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                 if (data.order?.package_id) {
                     setSelectedPkgId(data.order.package_id);
                 } else if (data.packages?.length > 0) {
-                    setSelectedPkgId(data.packages[1]?.id || data.packages[0]?.id); // Default Siap Kuliah+
+                    setSelectedPkgId(data.packages[1]?.id || data.packages[0]?.id);
                 }
             }
         } catch (err) {
@@ -42,10 +42,43 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        loadData();
+        let active = true;
+
+        fetch('/api/departure-payments')
+            .then(async (res) => {
+                const data = await res.json().catch(() => null);
+                return { res, data };
+            })
+            .then(({ res, data }) => {
+                if (!active) return;
+                if (!res.ok || !data?.success) {
+                    throw new Error(data?.message || 'Gagal memuat data paket keberangkatan.');
+                }
+                setPackages(data.packages || []);
+                setOrder(data.order || null);
+                setInstallments(data.installments || []);
+                if (data.order?.package_id) {
+                    setSelectedPkgId(data.order.package_id);
+                } else if (data.packages?.length > 0) {
+                    setSelectedPkgId(data.packages[1]?.id || data.packages[0]?.id);
+                }
+            })
+            .catch((err) => {
+                if (active) {
+                    console.error('Failed to load departure payment:', err);
+                    setError(err.message || 'Gagal memuat data paket keberangkatan.');
+                }
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+
+        return () => {
+            active = false;
+        };
     }, []);
 
     const handleSelectPackage = async (pkgId) => {
@@ -363,7 +396,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                                                         DITOLAK ❌
                                                     </span>
                                                     {inst.rejection_reason && (
-                                                        <p className="mt-1 text-[10px] text-red-600 italic">"{inst.rejection_reason}"</p>
+                                                        <p className="mt-1 text-[10px] text-red-600 italic">&quot;{inst.rejection_reason}&quot;</p>
                                                     )}
                                                 </div>
                                             )}

@@ -1452,7 +1452,7 @@ useEffect(() => {
                                                                     Diajukan: {new Date(inst.submitted_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB
                                                                 </p>
                                                                 {inst.rejection_reason && (
-                                                                    <p className="text-[10px] text-red-600 mt-0.5">Alasan tolak: "{inst.rejection_reason}"</p>
+                                                                    <p className="text-[10px] text-red-600 mt-0.5">Alasan tolak: &quot;{inst.rejection_reason}&quot;</p>
                                                                 )}
                                                             </div>
 

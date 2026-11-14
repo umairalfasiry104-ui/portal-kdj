@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "npm run test:qualification && npm run test:daily-report && npm run test:otp && npm run test:payment-account && npm run test:registration-payment-progress && npm run test:admin-daily-report-recovery && node scripts/test-departure-payments-contract.mjs",
     "test:qualification": "node scripts/test-lead-qualification-contract.mjs && node scripts/test-followup-idle-final-contract.mjs",
     "test:daily-report": "node scripts/test-daily-reporting-contract.mjs",
     "test:otp": "node scripts/test-otp-durable-contract.mjs",
