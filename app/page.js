@@ -1279,13 +1279,7 @@ if (nextStep) {
     // ================= TAMPILAN LOGIN MAHASISWA =================
     return (
         <div className="min-h-screen flex flex-col bg-[#06315b]">
-            <OfficialHeader
-                rightAction={
-                    <Link href="/admin" className="text-xs text-amber-400 hover:underline font-semibold">
-                        Login Admin &rarr;
-                    </Link>
-                }
-            />
+            <OfficialHeader />
 
             <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
                 <div className="text-center max-w-2xl mb-8 text-white">
