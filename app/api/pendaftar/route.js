@@ -109,6 +109,8 @@ const requiredFields = [
     'tanggal_lahir',
     'jenis_kelamin',
     'no_paspor',
+    'nama_orang_tua_wali',
+    'no_wa_orang_tua_wali',
     'alamat_lengkap',
     'asal_sekolah',
     'tahun_lulus',
@@ -136,6 +138,8 @@ const stringFields = [
     'nama_lengkap',
     'tempat_lahir',
     'no_paspor',
+    'nama_orang_tua_wali',
+    'no_wa_orang_tua_wali',
     'alamat_lengkap',
     'asal_sekolah',
     'jenis_kelamin',
@@ -146,17 +150,6 @@ const stringFields = [
 const invalidStringFields = stringFields.filter(
     (field) => typeof body[field] !== 'string'
 );
-
-// Field kontak orang tua/wali bersifat opsional untuk kompatibilitas payload lama.
-for (const field of ['nama_orang_tua_wali', 'no_wa_orang_tua_wali']) {
-    if (
-        Object.prototype.hasOwnProperty.call(body, field) &&
-        body[field] !== null &&
-        typeof body[field] !== 'string'
-    ) {
-        invalidStringFields.push(field);
-    }
-}
 
 // Tanggal harus string atau null.
 if (
@@ -454,6 +447,8 @@ if (hasPayloadPhone) {
                 !cleanNama ||
                 !cleanTempatLahir ||
                 !tanggal_lahir ||
+                !cleanParentName ||
+                !cleanParentPhone ||
                 !cleanAlamat ||
                 !cleanSekolah ||
                 !parsedTahunLulus
@@ -461,7 +456,7 @@ if (hasPayloadPhone) {
                 return NextResponse.json(
                     {
                         success: false,
-                        message: 'Seluruh data diri dan informasi sekolah pada Step 1 & Step 2 wajib dilengkapi sebelum mengirim pendaftaran.'
+                        message: 'Seluruh data diri, kontak orang tua/wali, dan informasi sekolah pada Step 1 & Step 2 wajib dilengkapi sebelum mengirim pendaftaran.'
                     },
                     { status: 400 }
                 );
@@ -528,7 +523,7 @@ if (hasPayloadPhone) {
             pilihan_jurusan: cleanJurusan,
             status_pendaftaran: statusBaru,
             updated_at: new Date().toISOString(),
-            ...(hasParentName ? { nama_orang_tua_wali: cleanParentName || null } : {}),
+            ...(hasParentName ? { nama_orang_tua_wali: cleanParentName } : {}),
             ...(hasParentPhone ? { no_wa_orang_tua_wali: cleanParentPhone } : {})
         };
 

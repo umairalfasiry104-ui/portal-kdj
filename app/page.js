@@ -253,6 +253,7 @@ export default function PortalKDJ() {
     const calculateProgress = () => {
         const fields = [
             formData.nama_lengkap, formData.tempat_lahir, formData.tanggal_lahir,
+            formData.nama_orang_tua_wali, formData.no_wa_orang_tua_wali,
             formData.alamat_lengkap, formData.asal_sekolah,
             formData.tahun_lulus, formData.pilihan_kampus, formData.pilihan_jurusan,
             uploadedDocs['pasfoto'], uploadedDocs['ijazah'], uploadedDocs['transkrip'],
@@ -340,6 +341,7 @@ export default function PortalKDJ() {
         if (isInitialSubmit) {
             const requiredInitialFields = [
                 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',
+                'nama_orang_tua_wali', 'no_wa_orang_tua_wali',
                 'alamat_lengkap', 'asal_sekolah', 'tahun_lulus',
                 'pilihan_kampus', 'pilihan_jurusan'
             ];
@@ -349,7 +351,7 @@ export default function PortalKDJ() {
                 || String(formData[field]).trim() === ''
             ));
             if (missingInitialFields.length > 0) {
-                alert('Lengkapi data diri, asal sekolah, tahun lulus, kampus, dan jurusan sebelum membuat tagihan.');
+                alert('Lengkapi data diri, nama & nomor WhatsApp orang tua/wali, asal sekolah, tahun lulus, kampus, dan jurusan sebelum membuat tagihan.');
                 setWizardStep(1);
                 return;
             }
@@ -809,7 +811,7 @@ if (nextStep) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nama Orang Tua/Wali (Opsional)</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nama Orang Tua/Wali <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             maxLength={150}
@@ -821,7 +823,7 @@ if (nextStep) {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor WhatsApp Orang Tua/Wali (Opsional)</label>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nomor WhatsApp Orang Tua/Wali <span className="text-red-500">*</span></label>
                                         <input
                                             type="tel"
                                             inputMode="tel"

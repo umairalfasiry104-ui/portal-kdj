@@ -33,8 +33,8 @@ console.log('[PASS] Guardian WhatsApp normalization.');
 
 assert.ok(page.includes("nama_orang_tua_wali: ''"));
 assert.ok(page.includes("no_wa_orang_tua_wali: ''"));
-assert.ok(page.includes('Nama Orang Tua/Wali (Opsional)'));
-assert.ok(page.includes('Nomor WhatsApp Orang Tua/Wali (Opsional)'));
+assert.ok(page.includes('Nama Orang Tua/Wali <span className="text-red-500">*</span>'));
+assert.ok(page.includes('Nomor WhatsApp Orang Tua/Wali <span className="text-red-500">*</span>'));
 assert.ok(page.includes('value={formData.nama_orang_tua_wali}'));
 assert.ok(page.includes('value={formData.no_wa_orang_tua_wali}'));
 for (const key of ['nama_orang_tua_wali', 'no_wa_orang_tua_wali']) {
@@ -45,27 +45,27 @@ for (const key of ['nama_orang_tua_wali', 'no_wa_orang_tua_wali']) {
 const progressStart = page.indexOf('const calculateProgress =');
 const progressEnd = page.indexOf('const handleRequestOtp', progressStart);
 const progressBlock = page.slice(progressStart, progressEnd);
-assert.ok(!progressBlock.includes('nama_orang_tua_wali'));
-assert.ok(!progressBlock.includes('no_wa_orang_tua_wali'));
-console.log('[PASS] Applicant UI, state hydration and optional progress behavior.');
+assert.ok(progressBlock.includes('formData.nama_orang_tua_wali'));
+assert.ok(progressBlock.includes('formData.no_wa_orang_tua_wali'));
+console.log('[PASS] Applicant UI, state hydration and mandatory progress behavior.');
 
 const requiredStart = saveApi.indexOf('const requiredFields = [');
 const requiredEnd = saveApi.indexOf('];', requiredStart);
 assert.ok(requiredStart >= 0 && requiredEnd > requiredStart);
 const requiredFields = saveApi.slice(requiredStart, requiredEnd);
-assert.ok(!requiredFields.includes('nama_orang_tua_wali'));
-assert.ok(!requiredFields.includes('no_wa_orang_tua_wali'));
+assert.ok(requiredFields.includes('nama_orang_tua_wali'));
+assert.ok(requiredFields.includes('no_wa_orang_tua_wali'));
 assert.ok(saveApi.includes("const hasParentName = Object.prototype.hasOwnProperty.call(body, 'nama_orang_tua_wali')"));
 assert.ok(saveApi.includes("const hasParentPhone = Object.prototype.hasOwnProperty.call(body, 'no_wa_orang_tua_wali')"));
 assert.ok(saveApi.includes('normalizePhoneLocal(rawParentPhone)'));
-assert.ok(saveApi.includes('nama_orang_tua_wali: cleanParentName || null'));
+assert.ok(saveApi.includes('nama_orang_tua_wali: cleanParentName'));
 assert.ok(saveApi.includes('no_wa_orang_tua_wali: cleanParentPhone'));
 assert.ok(saveApi.includes("'nama_orang_tua_wali',\n    'no_wa_orang_tua_wali'"));
 const botNotifyStart = saveApi.lastIndexOf('callWaBotApi(');
 const botNotifyBlock = saveApi.slice(botNotifyStart);
 assert.ok(!botNotifyBlock.includes('nama_orang_tua_wali'));
 assert.ok(!botNotifyBlock.includes('no_wa_orang_tua_wali'));
-console.log('[PASS] Applicant save API, optional compatibility and Bot data minimization.');
+console.log('[PASS] Applicant save API, mandatory enforcement and Bot data minimization.');
 
 for (const key of ['nama_orang_tua_wali', 'no_wa_orang_tua_wali']) {
   assert.ok(otpApi.includes("'" + key + "'"), 'OTP customer DTO selects ' + key);
