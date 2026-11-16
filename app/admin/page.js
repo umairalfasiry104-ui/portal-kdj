@@ -959,7 +959,7 @@ useEffect(() => {
             {/* TAB PENDAFTAR */}
             {activeTab === 'pendaftar' && (
                 <div className="max-w-7xl mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    <div className="lg:col-span-2 min-w-0 bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] overflow-hidden">
+                    <div className="lg:col-span-1 min-w-0 bg-white rounded-2xl shadow-sm border-t-4 border-[#06315b] overflow-hidden">
                         <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                             <h2 className="font-extrabold text-[#06315b]">Daftar Calon Mahasiswa</h2>
                             <button onClick={fetchPendaftar} className="text-xs font-bold text-[#06315b] hover:underline">
@@ -1002,7 +1002,7 @@ useEffect(() => {
                         </div>
                     </div>
 
-                    <div className="lg:col-span-1 min-w-0">
+                    <div className="lg:col-span-2 min-w-0">
                         {selectedUser ? (
                         <form onSubmit={handleUpdateAndNotify} className="bg-white rounded-2xl shadow-sm border-t-4 border-amber-400 p-4 sm:p-6 space-y-5">
                             <div className="border-b border-slate-100 pb-3">
