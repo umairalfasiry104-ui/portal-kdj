@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const migration = fs.readFileSync(
-    path.join(root, 'supabase', 'migrations', '20261117000000_kdj_departure_batches_v1.sql'),
+    path.join(root, 'supabase', 'migrations', '20261118074116_kdj_departure_batches_v1.sql'),
     'utf8'
 ).replace(/\r\n?/g, '\n');
 const batchRoute = fs.readFileSync(
