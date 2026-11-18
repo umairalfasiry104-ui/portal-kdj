@@ -33,7 +33,7 @@
     "tailwindcss": "^4"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": "24.x"
   },
   "overrides": {
     "@typescript-eslint/typescript-estree": {
