@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:upload-document-schema-contract && npm run test:qualification && npm run test:daily-report && npm run test:otp && npm run test:payment-account && npm run test:registration-payment-progress && npm run test:admin-daily-report-recovery && node scripts/test-departure-payments-contract.mjs && npm run test:departure-batches && npm run test:departure-h45-followup && npm run test:admin-password-contract",
+    "test": "npm run test:financial-document-pdf && npm run test:upload-document-schema-contract && npm run test:qualification && npm run test:daily-report && npm run test:otp && npm run test:payment-account && npm run test:registration-payment-progress && npm run test:admin-daily-report-recovery && node scripts/test-departure-payments-contract.mjs && npm run test:departure-batches && npm run test:departure-h45-followup && npm run test:admin-password-contract",
     "test:upload-document-schema-contract": "node scripts/test-upload-document-schema-contract.mjs",
     "test:qualification": "node scripts/test-lead-qualification-contract.mjs && node scripts/test-followup-idle-final-contract.mjs",
     "test:daily-report": "node scripts/test-daily-reporting-contract.mjs",
@@ -17,12 +17,14 @@
     "test:admin-daily-report-recovery": "node scripts/test-admin-daily-report-recovery.mjs",
     "test:departure-batches": "node scripts/test-departure-batches-contract.mjs",
     "test:departure-h45-followup": "node scripts/test-departure-h45-followup-contract.mjs",
-    "test:admin-password-contract": "node scripts/test-admin-password-contract.mjs"
+    "test:admin-password-contract": "node scripts/test-admin-password-contract.mjs",
+    "test:financial-document-pdf": "node scripts/test-financial-document-pdf.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
     "dotenv": "^18.0.10",
     "next": "16.4.6",
+    "pdfkit": "0.20.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
