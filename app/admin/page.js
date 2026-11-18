@@ -7,6 +7,8 @@ import AdminFollowupsPanel from './components/AdminFollowupsPanel';
 import AdminLeadQualificationPanel from './components/AdminLeadQualificationPanel';
 import AdminDailyReportPanel from './components/AdminDailyReportPanel';
 import AdminDepartureReviewPanel from './components/AdminDepartureReviewPanel';
+import AdminDepartureFollowupPanel from './components/AdminDepartureFollowupPanel';
+import AdminDepartureBatchPanel from './components/AdminDepartureBatchPanel';
 import AdminPasswordManager from './components/AdminPasswordManager';
 import { KDJLogoHeader, KDJLogoSquare } from './components/AdminBranding';
 import {
@@ -879,6 +881,30 @@ useEffect(() => {
                         }`}
                         >
                         📋 Data Pendaftar ({pendaftarList.length})
+                        </button>
+                    )}
+                    {adminUser.role === 'Super Admin' && (
+                        <button
+                        onClick={() => setActiveTab('departure-batches')}
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
+                            activeTab === 'departure-batches'
+                            ? 'bg-amber-400 text-[#06315b] shadow'
+                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
+                        }`}
+                        >
+                        Gelombang Keberangkatan
+                        </button>
+                    )}
+                    {canViewDeparturePayments(adminUser.role) && (
+                        <button
+                        onClick={() => setActiveTab('departure-followups')}
+                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
+                            activeTab === 'departure-followups'
+                            ? 'bg-amber-400 text-[#06315b] shadow'
+                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
+                        }`}
+                        >
+                        Monitoring Pelunasan
                         </button>
                     )}
                     {canAccessJadwalTab(adminUser.role) && (
@@ -1847,6 +1873,8 @@ useEffect(() => {
             {activeTab === 'followups' && adminUser.role === 'Super Admin' && <AdminFollowupsPanel />}
             {activeTab === 'lead-qualification' && canAccessLeadQualificationTab(adminUser.role) && <AdminLeadQualificationPanel isReadOnly={adminUser.role === 'Admin Viewer'} />}
             {activeTab === 'daily-report' && ['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser.role) && <AdminDailyReportPanel isSuperAdmin={adminUser.role === 'Super Admin'} />}
+            {activeTab === 'departure-followups' && canViewDeparturePayments(adminUser.role) && <AdminDepartureFollowupPanel />}
+            {activeTab === 'departure-batches' && adminUser.role === 'Super Admin' && <AdminDepartureBatchPanel />}
 
             {/* TAB TIM ADMIN (READ-ONLY KHUSUS SUPER ADMIN) */}
       {activeTab === 'admins' && canAccessAdminsTab(adminUser.role) && (
