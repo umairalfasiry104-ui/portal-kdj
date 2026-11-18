@@ -1,4 +1,8 @@
 # Supabase Staging Migration History Reconciliation
+
+> **Supersession addendum — 15 November 2026:** This reconciliation is the 12-version source/manifest comparison for the former Staging project `pgmdurnylyuqkikbwwwy`; it is not the complete migration manifest for the newly designated Staging project. The owner has confirmed `faoxkegwhpcuubtiserj` as current Staging. The latest read-only audit recorded 22 migration versions on `faox...`, including these six later applied versions: `20261114000000_kdj_departure_packages_and_installments`, `20261114000001_kdj_attestation_key_storage_compatibility`, `20261114000002_kdj_bot_attestation_key_reconcile`, `20261114150930_admin_password_change_controls`, `20261114152054_admin_scrypt_hash_compatibility`, and `20261114152234_admin_scrypt_hash_trigger_guard`. Do not compare the current project against the 12-version historical table below or replay migrations based on this document. Use the current environment record and perform a fresh read-only migration reconciliation before any new migration.
+
+
 **Date:** 12 November 2026 (Asia/Jakarta)  
 **Project:** Staging `pgmdurnylyuqkikbwwwy`  
 **Scope:** Local Portal migration source alignment only. No database DDL or migration execution.

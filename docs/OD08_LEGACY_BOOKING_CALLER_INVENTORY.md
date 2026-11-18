@@ -92,3 +92,17 @@ No Production project, Supabase project `oudjeospzpiwkupfutow`, Vercel env varia
 At the OD-08 audit snapshot, no active KDJ Bot runtime process was observed. That historical statement is superseded for the current local Staging session: after dependency activation the Bot is running as Node PID 18436, local API 127.0.0.1:3001, WhatsApp READY and heartbeat OK.
 
 This is not a VPS deployment and does not change the future VPS go-live checklist. Re-run OD-08 against the future VPS/process manager, Vercel, cron, webhooks and integrations before bringing any Production Bot caller online.
+
+
+## Current Vercel / environment reconciliation — 15 November 2026
+
+This section supersedes any inference that the 10 November inventory still describes the currently accessible Vercel account/team scope:
+
+- The latest read-only check of the currently connected Vercel team exposed only the unrelated `camp-fight-app` project; no KDJ Portal or KDJ Bot project was returned for the KDJ repo names.
+- This conflicts with the historical 10 November inventory above, which recorded a `portal-kdj` Vercel project and deployments. The discrepancy may reflect a different team/account scope or changed project linkage; it is not safe to resolve by guessing.
+- No Vercel environment variable, domain, alias, project, deployment or Production setting was changed during the 15 November check.
+- Before touching Vercel, confirm the intended owner account/team and exact Portal project linkage, then inspect Preview and Production variables separately with secret values hidden.
+- Owner-confirmed Staging ref is now `faoxkegwhpcuubtiserj`; old `pgmdurnylyuqkikbwwwy` is retired for new UAT. Do not carry forward old Preview/Production variable conclusions as current settings without a fresh inspection.
+- VPS state remains OPEN / NOT VERIFIED; repeat the caller inventory on the actual host and process manager before connecting it to Supabase or WhatsApp.
+
+See `ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md` for the current target and deployment boundary.

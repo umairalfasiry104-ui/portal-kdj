@@ -68,7 +68,8 @@ assert.match(panel, /BATCH_NOT_ASSIGNED/);
 assert.match(panel, /phone_masked/);
 
 assert.match(access, /function canViewDeparturePayments/);
-assert.match(adminPage, /setActiveTab\('departure-followups'\)/);
+assert.match(adminPage, /canViewDeparturePayments\(adminUser\?\.role\) \? \[\{ id: 'departure-followups'/);
+assert.match(adminPage, /onClick=\{\(\) => handleNavigateTab\(item\.id\)\}/);
 assert.match(adminPage, /activeTab === 'departure-followups' && canViewDeparturePayments\(adminUser\.role\) && <AdminDepartureFollowupPanel \/>/);
 
 assert.match(batchApi, /requireAdminSession/);
@@ -89,7 +90,7 @@ assert.match(batchApi, /currentJakartaDate/);
 assert.match(batchApi, /currentJakartaMonthStart/);
 assert.match(batchPanel, /Penempatan Order/);
 assert.match(batchPanel, /Riwayat Gelombang/);
-assert.match(adminPage, /setActiveTab\('departure-batches'\)/);
+assert.match(adminPage, /adminUser\?\.role === 'Super Admin' \? \[\{ id: 'departure-batches'/);
 assert.match(adminPage, /activeTab === 'departure-batches' && adminUser\.role === 'Super Admin' && <AdminDepartureBatchPanel \/>/);
 
 console.log('[PASS] H-45 remains follow-up-only; batch/date management and monitoring are RBAC-protected, audited, and payment-read-only.');

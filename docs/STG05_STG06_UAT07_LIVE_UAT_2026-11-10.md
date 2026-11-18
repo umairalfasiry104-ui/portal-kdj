@@ -1,4 +1,5 @@
 # STG-05 / STG-06 / UAT-07 — Live WhatsApp UAT Record
+> **Historical environment notice — 15 November 2026:** This record was executed against the former Staging project pgmdurnylyuqkikbwwwy. The owner has since confirmed faoxkegwhpcuubtiserj as the official Staging target. All test results, data counts and environment claims below remain historical evidence for pgmd... only; they do not establish the state of faox.... Use docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md for current environment authority and obtain fresh evidence on the current target before live UAT.
 
 **Date:** 10 November 2026 (Asia/Jakarta)  
 **Scope:** Local KDJ Bot + Supabase Staging only  

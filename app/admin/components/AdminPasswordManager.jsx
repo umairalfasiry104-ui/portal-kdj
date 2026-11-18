@@ -1,12 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+
+const subscribeToPortalReady = () => () => {};
+const getClientPortalReady = () => true;
+const getServerPortalReady = () => false;
 
 export default function AdminPasswordManager({
   required = false,
   onComplete = () => {}
 }) {
   const [isOpen, setIsOpen] = useState(required);
+  const portalReady = useSyncExternalStore(
+    subscribeToPortalReady,
+    getClientPortalReady,
+    getServerPortalReady
+  );
+
+  useEffect(() => {
+    if (required || !isOpen || !portalReady) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, portalReady, required]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -144,17 +165,17 @@ export default function AdminPasswordManager({
           resetForm();
           setIsOpen(true);
         }}
-        className="rounded-lg border border-amber-300 px-4 py-2 text-xs font-bold text-amber-300 transition hover:bg-[#0a3f73]"
+        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[#06315b] shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
       >
         Ganti Password
       </button>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4">
+      {isOpen && portalReady && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-950/60 p-4">
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-password-title"
-            className="my-auto w-full max-w-md rounded-2xl border-t-8 border-amber-400 bg-white p-6 text-slate-800 shadow-2xl"
+            className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border-t-8 border-amber-400 bg-white p-6 text-slate-800 shadow-2xl"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -179,7 +200,8 @@ export default function AdminPasswordManager({
             </div>
             {form}
           </section>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

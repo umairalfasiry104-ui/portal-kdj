@@ -1,9 +1,13 @@
-# KDJ Portal Operations Runbook — Local/Staging
+# KDJ Portal Operations Runbook — Local / Official Staging
+
+> Current target (owner-confirmed 2026-11-15): Supabase Staging `faoxkegwhpcuubtiserj`. Previous Staging `pgmdurnylyuqkikbwwwy` is retired for new UAT. See `../ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md` for environment and release authority.
 
 ## Purpose
 Operate the applicant/Admin Portal in Local or approved Supabase Staging. This runbook is not Production authorization.
 
 ## Start local Portal
+
+Before starting, confirm that the local `.env.local` Supabase URL resolves to the official Staging project `faoxkegwhpcuubtiserj`. Do not print the key or full environment file. If the ref differs, stop before running authenticated tests or remote-data commands.
 ```powershell
 Set-Location 'C:\Users\umair\KDJ stagging\kdj-portal'
 npm ci
@@ -26,7 +30,7 @@ Never expose secret keys through `NEXT_PUBLIC_`, browser code, logs, screenshots
 - Passport file is handed directly to Admin Human's personal WhatsApp number after registration and no later than H-45; Portal/Bot must not receive it.
 - Admin access is enforced server-side from verified session and database role.
 - Admin booking uses the HMAC-attested transactional RPC and durable Outbox.
-- Admin Daily Report v2 follows the owner-approved CR/CIR v2.0: immutable role-specific snapshots and optional one-to-one WhatsApp delivery by the Bot worker. The existing Portal manual preview/copy remains the fallback. Delivery is OFF by default and requires a separately approved supervised Staging UAT; do not activate the feature flag or send reports before recipient/queue preflight and explicit approval.
+- **Daily Report current scope (owner direction 2026-11-15):** manual Admin Portal generation and clipboard copy only. No automatic WhatsApp/email delivery, scheduled dispatch or broadcast is authorized. Keep any Bot report-delivery worker/feature flag disabled. The 12 Nov CR/CIR v2.0 automated-delivery approval is superseded for delivery operations by this later owner direction until explicitly re-approved through CR/CIR.
 
 ## Regression and build
 ```powershell

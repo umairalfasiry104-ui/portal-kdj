@@ -1,5 +1,8 @@
 # RT-04 Admin Booking Attested Lane
 
+> **Current target clarification — 15 November 2026:** The Staging cutover and positive/negative UAT evidence below refer to the previous Staging project (`pgmdurnylyuqkikbwwwy`) and remain historical. The owner has designated `faoxkegwhpcuubtiserj` as the official Staging target. Do not infer that the old project's key custody, ACLs, audit rows or UAT records automatically transferred. The current read-only audit found corresponding key-ID parity and database objects on `faox...`; perform fresh RT-04 live UAT there before release. Production remains separate. See `ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md`.
+
+
 ## Purpose
 Separate the Portal Admin manual-booking authority from WhatsApp customer booking approval. A manual Admin booking is not represented as customer consent.
 

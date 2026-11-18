@@ -58,6 +58,14 @@ assert.ok(departureSection.includes("Sisa Pelunasan"));
 assert.ok(departureSection.includes("7169735128"));
 assert.ok(adminDeparturePanel.includes("Status &amp; Verifikasi Cicilan Paket Keberangkatan"));
 assert.ok(adminDeparturePanel.includes("onReview"));
+assert.ok(adminDeparturePanel.includes("pendingInstallments = installments.filter((item) => item.status === 'PENDING_VERIFICATION')"));
+assert.ok(adminDeparturePanel.includes("historyInstallments = installments.filter((item) => item.status !== 'PENDING_VERIFICATION')"));
+assert.ok(adminDeparturePanel.includes('role="dialog"'));
+assert.ok(adminDeparturePanel.includes('Tinjau bukti'));
+assert.ok(adminDeparturePanel.includes('Minta Revisi'));
+assert.ok(adminDeparturePanel.includes('Setujui Pembayaran'));
+assert.ok(adminDeparturePanel.includes('canReviewDeparturePayments(adminRole)'));
+assert.ok(adminDeparturePanel.includes('window.confirm'));
 console.log('[PASS] Student and Admin UI components integration.');
 
 console.log('=== ALL DEPARTURE PAYMENT & INSTALLMENT CONTRACT TESTS PASSED ===');

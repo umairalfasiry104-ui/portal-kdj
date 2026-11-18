@@ -1,5 +1,8 @@
 # Archived migration-source files — 12 November 2026
 
+> **Historical environment scope — 15 November 2026:** The Staging object verification described below refers to the former Staging project `pgmdurnylyuqkikbwwwy`. The current official Staging project is `faoxkegwhpcuubtiserj`; do not treat the old object inventory as current evidence or replay these archived sources. Use the current environment status document and perform read-only verification against the confirmed target before any new migration.
+
+
 These SQL files are preserved for audit/history only. They are not part of the canonical Supabase Staging migration manifest and must not be run or copied back into `supabase/migrations` without a reviewed change-control decision.
 
 | Archived source | Disposition |

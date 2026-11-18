@@ -1,11 +1,14 @@
 # CR/CIR — Daily Business Report & Admin System Report
 
+> **Current authorization status — 15 November 2026:** This document records the earlier 12 November approval for scheduled Admin WhatsApp delivery as a historical change decision. That dispatch/scheduling authorization is superseded by the later owner direction: manual Admin Portal generation and clipboard copy only; no automated WhatsApp/email delivery, scheduled dispatch or broadcast. Keep the Bot delivery feature disabled. The full historical design remains below for audit traceability; do not treat it as current operating authorization.
+
+
 - **CR ID:** CR-CIR-KDJ-REPORT-001
 - **Version:** 2.0 (supersedes the v1.0 delivery-policy section only)
 - **Date:** 12 November 2026
 - **Decision authority:** Owner Admin
 - **Parent baseline:** KDJ Master System Specification v1.0 and CR-CIR_KDJ_DAILY_BOT_HUMAN_REPORT_v1.0.md
-- **Status:** OWNER-APPROVED; local implementation prepared; SQL validation, Staging migration, UAT, and release gates remain open
+- **Status:** 12 Nov 2026 approval retained as historical decision; automated delivery scope superseded by owner direction on 15 Nov 2026
 - **Environment boundary:** Local only in this execution. Staging migration/UAT and Production deployment require separate authorization.
 
 ## 1. Decision and preserved foundation
@@ -222,3 +225,8 @@ Focused source-contract tests cover role enforcement, actor identity, phone mask
 
 
 Clarification closure: the earlier Section 10 items for precise heartbeat freshness thresholds and Super Admin manual retry/reconciliation are now defined by this local implementation addendum. Report retention duration and WhatsApp compliance/channel risk acceptance remain open release decisions.
+
+
+## Owner direction superseding automated delivery — 15 November 2026
+
+The automated WhatsApp delivery and 08:00 scheduled-dispatch decision recorded in this 12 November CR/CIR is **not the current operating authorization**. The latest owner direction is to keep Daily Report to manual Admin Portal generation and clipboard copy only. Automated WhatsApp/email delivery, scheduled dispatch and broadcast are not authorized until the owner explicitly re-approves that scope through CR/CIR. Keep the Bot report-delivery feature disabled and do not enqueue/claim/send report-delivery rows. The original v2.0 approval text is retained as a historical decision record; this addendum controls the current operating boundary.

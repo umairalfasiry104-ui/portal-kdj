@@ -1,5 +1,8 @@
 # RT-04 Staging Admin HMAC Key Sync
 
+> **OBSOLETE PROCEDURE — DO NOT EXECUTE (15 November 2026):** The instructions below describe a one-time key reconciliation state from the former Staging project and are retained for audit history only. The owner has confirmed `faoxkegwhpcuubtiserj` as the current official Staging project. The latest read-only audit on that project found the Admin HMAC key identifier aligned with the active database key record. **Do not run the DELETE/bootstrap SQL below, do not replace or rotate the current key, and do not use this procedure on `faox...`.** Any future key rotation or custody change requires an approved CR/CIR and an explicit guarded migration/procedure. See `ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md`.
+
+
 ## Current status
 - The RT-04 Bot key proof succeeded against Staging. Do not rotate the Bot key.
 - The Admin Portal local key is valid 32 bytes (64 hex characters), but a signature proof returned `INVALID_ADMIN_ATTESTATION`.
