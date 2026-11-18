@@ -10,7 +10,7 @@ import AdminDepartureReviewPanel from './components/AdminDepartureReviewPanel';
 import AdminDepartureFollowupPanel from './components/AdminDepartureFollowupPanel';
 import AdminDepartureBatchPanel from './components/AdminDepartureBatchPanel';
 import AdminPasswordManager from './components/AdminPasswordManager';
-import { KDJLogoHeader, KDJLogoSquare } from './components/AdminBranding';
+import { KDJLogoSquare } from './components/AdminBranding';
 import {
     canAccessPendaftarTab,
     canAccessJadwalTab,
@@ -32,6 +32,7 @@ export default function AdminDashboard() {
     const [mustChangePassword, setMustChangePassword] = useState(false);
     const [authMsg, setAuthMsg] = useState('');
     const [activeTab, setActiveTab] = useState('pendaftar');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [pendaftarList, setPendaftarList] = useState([]);
     const [adminList, setAdminList] = useState([]);
     const [jadwalList, setJadwalList] = useState([]); // State untuk Jadwal
@@ -745,6 +746,7 @@ useEffect(() => {
     } catch {}
     localStorage.removeItem('kdj_admin');
     setAdminUser(null);
+    setIsSidebarOpen(false);
     setAdminList([]);
     setPendaftarList([]);
     setJadwalList([]);
@@ -759,6 +761,49 @@ useEffect(() => {
     localStorage.setItem('kdj_admin', JSON.stringify(updatedAdmin));
     setActiveTab(getDefaultTabForRole(updatedAdmin?.role));
     loadRoleScopedData(updatedAdmin?.role);
+  };
+
+  const activeTabMeta = {
+    pendaftar: { title: 'Data Pendaftar', section: 'Operasional', description: 'Kelola data pendaftaran, dokumen, dan status calon mahasiswa.' },
+    'departure-batches': { title: 'Gelombang Keberangkatan', section: 'Keberangkatan', description: 'Kelola perkiraan dan tanggal keberangkatan setiap gelombang.' },
+    'departure-followups': { title: 'Monitoring Pelunasan', section: 'Keberangkatan', description: 'Pantau progres pembayaran dan tindak lanjut keberangkatan.' },
+    jadwal: { title: 'Jadwal Konsultasi', section: 'Operasional', description: 'Kelola jadwal konsultasi dan status konfirmasi.' },
+    admins: { title: 'Tim Admin', section: 'Administrasi', description: 'Lihat direktori akun dan peran tim Admin.' },
+    system: { title: 'Monitoring Sistem', section: 'Monitoring', description: 'Pantau kondisi layanan dan komponen sistem KDJ.' },
+    'lead-qualification': { title: 'Kualifikasi Lead', section: 'Operasional', description: 'Tinjau rekomendasi Bot dan keputusan klasifikasi Admin.' },
+    followups: { title: 'Follow Up', section: 'Monitoring', description: 'Pantau antrean dan status proses follow up.' },
+    'daily-report': { title: 'Laporan Harian Bot', section: 'Laporan', description: 'Tinjau ringkasan aktivitas Bot dan laporan harian.' }
+  }[activeTab] || { title: 'Dashboard Admin', section: 'Workspace', description: 'Pusat pengelolaan operasional Kuliah di Jordan.' };
+
+  const sidebarNavGroups = [
+    {
+      title: 'Operasional',
+      items: [
+        ...(canAccessPendaftarTab(adminUser?.role) ? [{ id: 'pendaftar', label: 'Data Pendaftar', icon: '▤', count: pendaftarList.length }] : []),
+        ...(canAccessJadwalTab(adminUser?.role) ? [{ id: 'jadwal', label: 'Jadwal Konsultasi', icon: '◷', count: jadwalList.length }] : []),
+        ...(canAccessLeadQualificationTab(adminUser?.role) ? [{ id: 'lead-qualification', label: 'Kualifikasi Lead', icon: '◎' }] : [])
+      ]
+    },
+    {
+      title: 'Keberangkatan',
+      items: [
+        ...(adminUser?.role === 'Super Admin' ? [{ id: 'departure-batches', label: 'Gelombang Keberangkatan', icon: '⇢' }] : []),
+        ...(canViewDeparturePayments(adminUser?.role) ? [{ id: 'departure-followups', label: 'Monitoring Pelunasan', icon: '◫' }] : [])
+      ]
+    },
+    {
+      title: 'Monitoring & Tim',
+      items: [
+        ...(adminUser?.role === 'Super Admin' ? [{ id: 'followups', label: 'Follow Up', icon: '↗' }, { id: 'system', label: 'Monitoring Sistem', icon: '⌘' }] : []),
+        ...(canAccessAdminsTab(adminUser?.role) ? [{ id: 'admins', label: 'Tim Admin', icon: '♙', count: adminList.length }] : []),
+        ...(['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser?.role) ? [{ id: 'daily-report', label: 'Laporan Harian Bot', icon: '▥' }] : [])
+      ]
+    }
+  ].filter((group) => group.items.length > 0);
+
+  const handleNavigateTab = (tab) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
   };
 
     // ================= LOGIN ADMIN (USERNAME/EMAIL + PASSWORD) =================
@@ -846,141 +891,147 @@ useEffect(() => {
 
     // ================= DASHBOARD ADMIN =================
     return (
-        <div className="min-h-screen bg-slate-100 text-slate-800">
-            <header className="bg-[#06315b] text-white shadow-md border-b-4 border-amber-400">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap justify-between items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <KDJLogoHeader />
-                        <div>
-                            <h1 className="font-extrabold text-sm sm:text-base tracking-wide uppercase">ADMIN PANEL KDJ</h1>
-                            <p className="text-xs text-amber-400 font-semibold">
-                                Admin: {adminUser.nama_admin} ({adminUser.role})
-                            </p>
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-slate-50 text-slate-800">
+            {isSidebarOpen && (
+                <button
+                    type="button"
+                    aria-label="Tutup navigasi"
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-[2px] lg:hidden"
+                />
+            )}
 
-                    <div className="flex items-center gap-2">
-                        <AdminPasswordManager onComplete={handleAdminPasswordChanged} />
-                        <button
-                            onClick={handleLogoutAdmin}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition"
-                        >
-                            Logout
-                        </button>
+            <aside className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-[#123d65] bg-[#062b50] text-white shadow-2xl transition-transform duration-300 ease-out lg:translate-x-0 lg:shadow-none ${
+                isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}>
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
+                    <Link href="/" className="flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
+                        <KDJLogoSquare size="md" />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-extrabold tracking-wide text-white">KDJ PORTAL</span>
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300">Admin Workspace</span>
+                        </span>
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => setIsSidebarOpen(false)}
+                        aria-label="Tutup menu"
+                        className="ml-2 rounded-lg p-2 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden"
+                    >
+                        <span aria-hidden="true" className="text-xl leading-none">×</span>
+                    </button>
+                </div>
+
+                <div className="px-4 pt-5">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Ruang kerja</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-100">Operasional Kuliah di Jordan</p>
                     </div>
                 </div>
 
-                <nav className="max-w-7xl mx-auto px-6 pb-4 flex items-center gap-2 overflow-x-auto">
-                    {canAccessPendaftarTab(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('pendaftar')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'pendaftar'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        📋 Data Pendaftar ({pendaftarList.length})
-                        </button>
-                    )}
-                    {adminUser.role === 'Super Admin' && (
-                        <button
-                        onClick={() => setActiveTab('departure-batches')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'departure-batches'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Gelombang Keberangkatan
-                        </button>
-                    )}
-                    {canViewDeparturePayments(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('departure-followups')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'departure-followups'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Monitoring Pelunasan
-                        </button>
-                    )}
-                    {canAccessJadwalTab(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('jadwal')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'jadwal'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        📅 Jadwal Konsultasi ({jadwalList.length})
-                        </button>
-                    )}
-                    {canAccessAdminsTab(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('admins')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'admins'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        👥 Tim Admin ({adminList.length})
-                        </button>
-                    )}
-                    {adminUser.role === 'Super Admin' && (
-                        <button
-                        onClick={() => setActiveTab('system')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'system'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Monitoring Sistem
-                        </button>
-                    )}
-                    {canAccessLeadQualificationTab(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('lead-qualification')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'lead-qualification'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Kualifikasi Lead
-                        </button>
-                    )}
-                    {adminUser.role === 'Super Admin' && (
-                        <button
-                        onClick={() => setActiveTab('followups')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'followups'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Follow Up
-                        </button>
-                    )}
-                    {['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser.role) && (
-                        <button
-                        onClick={() => setActiveTab('daily-report')}
-                        className={`px-4 py-2 text-xs rounded-lg font-bold transition whitespace-nowrap ${
-                            activeTab === 'daily-report'
-                            ? 'bg-amber-400 text-[#06315b] shadow'
-                            : 'bg-[#042444] text-slate-200 hover:bg-[#083e73]'
-                        }`}
-                        >
-                        Laporan Harian Bot
-                        </button>
-                    )}
+                <nav aria-label="Navigasi dashboard Admin" className="min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-6">
+                    {sidebarNavGroups.map((group) => (
+                        <div key={group.title}>
+                            <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">
+                                {group.title}
+                            </p>
+                            <div className="space-y-1">
+                                {group.items.map((item) => {
+                                    const isActive = activeTab === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => handleNavigateTab(item.id)}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                                                isActive
+                                                    ? 'bg-amber-400 text-[#062b50] shadow-lg shadow-black/10'
+                                                    : 'text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                                            }`}
+                                        >
+                                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base transition ${
+                                                isActive ? 'bg-white/45 text-[#062b50]' : 'bg-white/[0.08] text-slate-300 group-hover:bg-white/15 group-hover:text-white'
+                                            }`} aria-hidden="true">
+                                                {item.icon}
+                                            </span>
+                                            <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
+                                            {item.count !== undefined && (
+                                                <span className={`min-w-6 rounded-full px-2 py-1 text-center text-[10px] font-extrabold tabular-nums ${
+                                                    isActive ? 'bg-[#062b50]/10 text-[#062b50]' : 'bg-white/10 text-slate-300'
+                                                }`}>
+                                                    {item.count}
+                                                </span>
+                                            )}
+                                            {isActive && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#062b50]" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
                 </nav>
-            </header>
+
+                <div className="border-t border-white/10 p-4">
+                    <div className="flex items-center gap-3 rounded-xl bg-white/[0.06] p-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-extrabold text-[#062b50]">
+                            {(adminUser.nama_admin || 'A').trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-white">{adminUser.nama_admin || 'Admin KDJ'}</p>
+                            <p className="mt-0.5 truncate text-[10px] text-slate-400">{adminUser.role}</p>
+                        </div>
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 ring-4 ring-emerald-400/10" title="Sesi Admin aktif" />
+                    </div>
+                    <Link href="/" className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+                        <span aria-hidden="true">↗</span>
+                        Kembali ke Portal Mahasiswa
+                    </Link>
+                </div>
+            </aside>
+
+            <main className="min-h-screen lg:pl-[280px]">
+                <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 shadow-sm shadow-slate-900/[0.025] backdrop-blur-xl">
+                    <div className="flex min-h-[82px] items-center gap-3 px-4 py-3 sm:px-6 xl:px-8">
+                        <button
+                            type="button"
+                            onClick={() => setIsSidebarOpen(true)}
+                            aria-label="Buka navigasi"
+                            aria-expanded={isSidebarOpen}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#06315b] shadow-sm transition hover:bg-slate-50 lg:hidden"
+                        >
+                            <span aria-hidden="true" className="text-lg">☰</span>
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                                <span>Admin Workspace</span>
+                                <span className="text-slate-300">/</span>
+                                <span className="truncate text-amber-600">{activeTabMeta.section}</span>
+                            </div>
+                            <h1 className="mt-1 truncate text-lg font-extrabold tracking-tight text-[#06315b] sm:text-xl">
+                                {activeTabMeta.title}
+                            </h1>
+                            <p className="mt-0.5 hidden text-xs text-slate-500 sm:block">{activeTabMeta.description}</p>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                            <div className="hidden text-right md:block">
+                                <p className="text-xs font-bold text-slate-800">{adminUser.nama_admin}</p>
+                                <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{adminUser.role}</p>
+                            </div>
+                            <AdminPasswordManager onComplete={handleAdminPasswordChanged} />
+                            <button
+                                type="button"
+                                onClick={handleLogoutAdmin}
+                                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                            >
+                                <span aria-hidden="true">↪</span>
+                                <span className="hidden sm:inline">Keluar</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
 
             {/* TAB PENDAFTAR */}
             {activeTab === 'pendaftar' && (
@@ -1942,6 +1993,7 @@ useEffect(() => {
           </div>
         </div>
       )}
-    </div>
+            </main>
+        </div>
   );
 }

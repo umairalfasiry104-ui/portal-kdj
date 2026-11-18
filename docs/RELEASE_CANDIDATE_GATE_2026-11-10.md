@@ -1,5 +1,7 @@
 # KDJ Release Candidate Gate — 10 November 2026
 
+> **Current status update — 15 November 2026:** This is a 10 November release-gate snapshot. Official Staging is now owner-confirmed as `faoxkegwhpcuubtiserj`; `pgmdurnylyuqkikbwwwy` is no longer the active UAT target. The later six migrations listed in `docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md` are recorded applied on `faox...`; historical UAT on `pgmd...` must not be counted as UAT on the new project. Live applicant/role/WhatsApp UAT is not fully closed, and Vercel/VPS readiness is still open. No deployment was performed by the documentation refresh. Daily Report remains manual-only per the later owner direction. The dated gate and its original evidence are retained below as historical records.
+
 **Scope:** Local source + Supabase Staging only.  
 **Production:** Not modified. No Vercel deployment or VPS deployment performed.  
 **Authority:** Master System Specification v1.0 remains frozen; all scope changes must follow CR/CIR.

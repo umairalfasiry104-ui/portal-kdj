@@ -1,4 +1,5 @@
 # KDJ Staging UAT Report — RT-04 and Admin Booking
+> **Historical environment notice — 15 November 2026:** This record was executed against the former Staging project pgmdurnylyuqkikbwwwy. The owner has since confirmed faoxkegwhpcuubtiserj as the official Staging target. All test results, data counts and environment claims below remain historical evidence for pgmd... only; they do not establish the state of faox.... Use docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md for current environment authority and obtain fresh evidence on the current target before live UAT.
 
 **Date:** 2026-11-10 (Asia/Jakarta)
 **Supabase Staging:** `pgmdurnylyuqkikbwwwy` / `kdj-staging-v6`

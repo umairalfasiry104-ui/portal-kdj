@@ -288,19 +288,19 @@ export async function POST(req) {
       });
     }
 
+    // dokumen_pendaftar stores ownership through pendaftar_id; no_wa is
+    // read from the parent pendaftar row and is not a column in this table.
+    // The DB permits multiple uploaded versions per document type, so use
+    // INSERT rather than an upsert conflict target that does not exist.
     const { data: docRecord, error: docError } = await supabase
       .from('dokumen_pendaftar')
-      .upsert(
-        {
-          pendaftar_id: pendaftar.id,
-          no_wa: sessionPhone,
-          jenis_dokumen,
-          file_path: safeObjectPath,
-          status_dokumen: 'pending',
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'pendaftar_id,jenis_dokumen' }
-      )
+      .insert({
+        pendaftar_id: pendaftar.id,
+        jenis_dokumen,
+        file_path: safeObjectPath,
+        status_dokumen: 'pending',
+        updated_at: new Date().toISOString()
+      })
       .select('*')
       .single();
 
@@ -369,7 +369,7 @@ export async function GET(req) {
 
     const supabase = getSupabaseAdmin();
     const pendaftarColumns = userSession
-      ? 'id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin, nama_orang_tua_wali, no_wa_orang_tua_wali'
+      ? 'id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin, nama_orang_tua_wali, no_wa_orang_tua_wali, nominal_tagihan'
       : 'id, no_wa, bukti_bayar_url, status_pembayaran, status_pendaftaran, catatan_admin';
     let pendaftarQuery = supabase
       .from('pendaftar')
@@ -406,7 +406,10 @@ export async function GET(req) {
     const { data: docs, error: docsError } = await supabase
       .from('dokumen_pendaftar')
       .select('*')
-      .eq('pendaftar_id', pendaftar.id);
+      .eq('pendaftar_id', pendaftar.id)
+      // The client maps by document type; ascending order ensures the newest
+      // uploaded version is applied last and remains the displayed version.
+      .order('created_at', { ascending: true });
     if (docsError) throw docsError;
 
     let signedBuktiUrl = null;

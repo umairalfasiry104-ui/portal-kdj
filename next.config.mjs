@@ -2,6 +2,9 @@
 const nextConfig = {
   /* config options here */
   devIndicators: false,
+  experimental: {
+    agentUpgrade: 'security',
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

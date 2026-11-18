@@ -178,7 +178,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                     )}
                 </div>
                 <p className="mt-1 text-xs text-slate-600">
-                    Pilih paket keberangkatan resmi ke Yordania. Anda dapat melunasi sekaligus atau mencicil bertahap dengan nominal bebas hingga maksimal H-45 sebelum keberangkatan.
+                    Pilih paket keberangkatan resmi ke Yordania. Anda dapat membayar sekaligus atau mencicil bertahap dengan nominal bebas hingga lunas. H-45 menjadi titik pengingat dan pemantauan pelunasan, bukan batas akhir pembayaran; cicilan tetap dapat dilakukan setelah H-45.
                 </p>
             </div>
 
@@ -266,7 +266,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                             <p className="text-[11px] font-bold text-amber-900 uppercase">Sisa Pelunasan</p>
                             <p className="text-lg font-black text-amber-700 mt-0.5">{formatRupiah(order.remaining_amount_idr)}</p>
                             <p className="text-[10px] text-amber-800 mt-1 font-semibold">
-                                *Wajib lunas paling lambat <strong>H-45 sebelum keberangkatan</strong>.
+                                H-45 adalah awal pengingat/follow-up pelunasan. Pembayaran tetap dapat dicicil seperti biasa setelah H-45 sampai seluruh tagihan lunas.
                             </p>
                         </div>
                         <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-700 space-y-1">

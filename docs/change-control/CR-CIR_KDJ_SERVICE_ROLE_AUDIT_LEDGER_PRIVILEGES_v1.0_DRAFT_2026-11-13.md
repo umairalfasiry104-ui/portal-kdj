@@ -1,4 +1,5 @@
 # DRAFT CR/CIR — Pembatasan Direct Privileges service_role pada Ledger KDJ
+> **Historical environment notice — 15 November 2026:** This record was executed against the former Staging project pgmdurnylyuqkikbwwwy. The owner has since confirmed faoxkegwhpcuubtiserj as the official Staging target. All test results, data counts and environment claims below remain historical evidence for pgmd... only; they do not establish the state of faox.... Use docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md for current environment authority and obtain fresh evidence on the current target before live UAT.
 Tanggal: 13 November 2026
 ID: CR-CIR-KDJ-SERVICE-ROLE-LEDGER-PRIV-001
 Versi: 1.0-DRAFT

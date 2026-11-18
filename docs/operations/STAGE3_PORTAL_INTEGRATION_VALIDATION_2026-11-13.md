@@ -1,4 +1,8 @@
 # Stage 3 — Portal Integration Validation
+
+> **Environment supersession notice — 15 November 2026:** The evidence below inspected the former Staging ref `pgmdurnylyuqkikbwwwy`, including its URL and heartbeat observations. Owner has since designated `faoxkegwhpcuubtiserj` as the official Staging project. This document remains valid as the 13 November historical integration validation only. Its environment-specific results, row counts, migration records and heartbeat values do not prove readiness on `faox...`; repeat only the impacted integration/UAT checks on the current target. See `../ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md`.
+
+
 Date: 13 November 2026
 Project: KDJ Portal + Daily Business Report v2
 Environment: Local Portal build; local source checkout; no authenticated Supabase UAT

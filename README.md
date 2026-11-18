@@ -7,8 +7,13 @@ Next.js App Router application for applicant registration, OTP authentication, d
 - Next.js 16.4.3, React 19.3.0.
 - Supabase JS server/client integration.
 - Local repository: `C:\Users\umair\KDJ stagging\kdj-portal`.
-- Approved Staging project: `pgmdurnylyuqkikbwwwy`.
-- Production is separate and is not configured by this README.
+- **Official Staging project (owner-confirmed 2026-11-15):** `faoxkegwhpcuubtiserj`.
+- Previous Staging `pgmdurnylyuqkikbwwwy` is retired from active UAT; its reports remain historical.
+- Production is separate. The previously referenced `oudjeospzpiwkupfutow` must be independently verified before any Production operation.
+
+## Current environment and release authority
+
+Read `docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md` before UAT, migration work, or release preparation. It identifies the owner-confirmed Staging ref, retired project, current report policy and open Vercel/VPS gates.
 
 ## Local setup
 1. Use the approved local `.env.local` supplied by the project owner. Never commit it or paste values into logs/chat.

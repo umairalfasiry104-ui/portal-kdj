@@ -1,5 +1,7 @@
 # KDJ Master Work Roadmap — 10 November 2026
 
+> **Current status update — 15 November 2026:** This 10 November roadmap is a historical work plan. The owner has confirmed Supabase Staging `faoxkegwhpcuubtiserj` as the sole current Staging/UAT target; `pgmdurnylyuqkikbwwwy` is retired from new testing. Six later migrations (`20261114000000`, `20261114000001`, `20261114000002`, `20261114150930`, `20261114152054`, `20261114152234`) are recorded as applied on the current project. Prior passes on `pgmd...` are not current-project UAT evidence. Current UAT remains open; no Vercel/VPS deployment is authorized or verified. Daily Report is manual Admin Portal generation/copy only; automated WhatsApp/email delivery is not authorized. See `docs/ENVIRONMENT_AND_RELEASE_STATUS_2026-11-15.md` for the current release gate. The dated roadmap below is retained as historical planning evidence and must not be read as the current task state.
+
 **Scope authority:** KDJ Master System Specification v1.0 (approved; target scope frozen).  
 **Worktrees:** Portal `C:\Users\umair\KDJ stagging\kdj-portal`; Bot `C:\Users\umair\KDJ stagging\kdj-wa-bot`.  
 **Database:** Supabase Staging `pgmdurnylyuqkikbwwwy` / `kdj-staging-v6`.  

@@ -79,7 +79,7 @@ export async function POST(req) {
                 `• Nominal Masuk: ${formatRupiah(installment.amount_idr)}\n` +
                 `• Total Terbayar: ${formatRupiah(order.paid_amount_idr)}\n` +
                 `• Sisa Pelunasan: ${formatRupiah(order.remaining_amount_idr)}\n` +
-                `• Status: ${isPaid ? 'LUNAS (100%)' : 'BELUM LUNAS (Maksimal H-45 sebelum keberangkatan)'}\n\n` +
+                `• Status: ${isPaid ? 'LUNAS (100%)' : 'BELUM LUNAS (PEMBAYARAN BERTAHAP)'}\n\n` +
                 (isPaid
                     ? '🎉 Pembayaran telah Lunas 100%! Seluruh dokumen Suketmah & LOA kini dapat diunduh di portal, dan pengurusan Visa & Tiket akan segera diproses.'
                     : 'Pantau riwayat cicilan & perkembangan berkas Anda di: pendaftaran.kuliahdijordan.com');
@@ -87,7 +87,7 @@ export async function POST(req) {
             notifyStatus = 'BUKTI CICILAN PERLU REVISI';
             notifyNote =
                 `Mohon maaf, bukti pembayaran cicilan sebesar ${formatRupiah(installment.amount_idr)} belum dapat disetujui.\n\n` +
-                `Alasan: "${reason.trim()}"\n\n` +
+                `Alasan: "${safeReason}"\n\n` +
                 `Silakan unggah ulang bukti transfer yang jelas melalui portal: pendaftaran.kuliahdijordan.com`;
         }
 
