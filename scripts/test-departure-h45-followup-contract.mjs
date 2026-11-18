@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8').replace(/\r\n?/g, '\n');
 
-const migration = read('supabase/migrations/20261117000000_kdj_departure_batches_v1.sql');
+const migration = read('supabase/migrations/20261118074116_kdj_departure_batches_v1.sql');
 const aclMigration = read('supabase/migrations/20261118074256_kdj_departure_batches_service_role_acl_hardening.sql');
 const api = read('app/api/admin/departure-followups/route.js');
 const panel = read('app/admin/components/AdminDepartureFollowupPanel.jsx');
