@@ -33,7 +33,7 @@ The renderer follows the two owner-provided one-page PDF examples:
 2. Owner-provided kwitansi PDF sample.
 
 Elements represented:
-- Existing KDJ horizontal logo and issuer identity.
+- Owner-provided KDJ square logo and issuer identity.
 - Issuer address and contact line.
 - Centered INVOICE / KWITANSI title.
 - Faktur/document number, issue date, and student name.
@@ -42,7 +42,7 @@ Elements represented:
 - Bank transfer information and warning panel.
 - Signatory name/area and terms/notes.
 
-The renderer receives issuer/bank/signatory values from the immutable document snapshot. It does not embed bank account or signatory values as hidden generator defaults. Logo and optional signature are supplied as validated PNG/JPEG bytes. If a signature image is absent, the renderer shows a signatory line/name; it does not synthesize a signature.
+The renderer receives issuer/bank/signatory values from the immutable document snapshot. It does not embed bank account or signatory values as hidden generator defaults. The KDJ logo is a public brand asset at public/kdj-logo.png. The issuer signature is loaded only from server-side KDJ_ISSUER_SIGNATURE_BASE64 (a sensitive environment variable) or explicitly injected server-side PNG/JPEG bytes. It is never placed under public/ or committed to Git. The local copy is stored outside the repository and its Base64 value is in ignored .env.local. If no signature image is configured, the renderer shows a signatory line/name; it does not synthesize a signature.
 
 ## 3. Local source implementation
 
@@ -85,6 +85,7 @@ Executed in the isolated worktree based on the latest Production main commit:
 | PDF header, EOF, metadata, page object | PASS |
 | Example invoice page count | 1 A4 page |
 | Example receipt page count | 1 A4 page |
+| Local secret-signature render | PASS; one A4 page with signature image embedded |
 | Required issuer/payment fields validation | PASS |
 | Invalid type / zero amount / invalid image rejection | PASS |
 | `npm test` | PASS |
@@ -97,9 +98,16 @@ Executed in the isolated worktree based on the latest Production main commit:
 
 - The supplied examples and automated rendering tests use Latin-script student names.
 - Arabic/RTL names, mixed-direction text, glyph shaping, and extraction were not validated in this PDFKit implementation. Do not claim RTL support until a representative Arabic test suite and an appropriate font/BiDi strategy are implemented and reviewed.
-- The signature asset has not been supplied as a standalone image. Current output uses a signatory line/name when no signature bytes are supplied.
+- The owner supplied a standalone issuer signature asset. A local-only test confirmed the server secret is decoded and embedded. The signature file and Base64 secret are excluded from Git; Vercel Preview/Production secret configuration has not yet been added.
 - Issuer legal metadata and bank details still require final confirmation as part of the financial-document issuance/storage CR-CIR before any live invoice or receipt is issued.
 
 ## 7. Release decision
 
 This is a local source candidate for the PDF renderer only. It is not a Production feature release. Further financial-document ledger, issuance, private storage, and Portal integration require the remaining CR/CIR review and a separate Staging approval/UAT before Production.
+
+## 8. Asset handling update ? 25 November 2026
+
+- Added owner-provided KDJ square logo to the public brand assets.
+- Isolated the issuer signature from the public folder and Git. Local Windows copy: LocalAppData KDJ private-assets; local environment variable: KDJ_ISSUER_SIGNATURE_BASE64 in ignored .env.local.
+- Renderer reads the signature only on the server from that sensitive variable or an explicitly injected server-side image buffer.
+- The actual signature is not stored in the repository, commit, or public URL. Vercel secret configuration is deferred until the financial-document feature is approved for Preview/Production.
