@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import FinancialDocumentsList from './FinancialDocumentsList';
 
 function formatRupiah(num) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
@@ -10,6 +11,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
     const [packages, setPackages] = useState([]);
     const [order, setOrder] = useState(null);
     const [installments, setInstallments] = useState([]);
+    const [financialDocumentsVersion, setFinancialDocumentsVersion] = useState(0);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -101,6 +103,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
             }
             setOrder(data.order);
             setSelectedPkgId(data.order.package_id);
+            setFinancialDocumentsVersion((current) => current + 1);
             setSuccessMsg(`Berhasil memilih ${data.order.package_name}. Silakan lakukan transfer pembayaran.`);
         } catch (err) {
             setError(err.message || 'Gagal memilih paket.');
@@ -139,10 +142,11 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                 throw new Error(data?.message || 'Gagal mengunggah bukti cicilan.');
             }
 
-            setSuccessMsg('✅ Bukti pembayaran cicilan berhasil diunggah! Menunggu verifikasi tim Admin KDJ.');
+            setSuccessMsg('Ã¢Å“â€¦ Bukti pembayaran cicilan berhasil diunggah! Menunggu verifikasi tim Admin KDJ.');
             setInstallmentAmount('');
             setReceiptFile(null);
             await loadData();
+            setFinancialDocumentsVersion((current) => current + 1);
             if (onPaymentSuccess) onPaymentSuccess();
         } catch (err) {
             setError(err.message || 'Gagal mengunggah bukti transfer.');
@@ -224,7 +228,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
                                     <span className="font-semibold text-slate-500">Tiket & Visa:</span>
                                     <span className={`font-bold ${pkg.includes_ticket_visa ? 'text-emerald-700' : 'text-slate-400'}`}>
-                                        {pkg.includes_ticket_visa ? 'Termasuk ✅' : 'Belum termasuk'}
+                                        {pkg.includes_ticket_visa ? 'Termasuk Ã¢Å“â€¦' : 'Belum termasuk'}
                                     </span>
                                 </div>
                             </div>
@@ -287,7 +291,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
 
                     {hasPendingReview ? (
                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 font-medium">
-                            ⏳ Bukti cicilan Anda sebelumnya sedang dalam antrean verifikasi Admin KDJ. Formulir pembayaran baru akan aktif kembali setelah bukti diverifikasi atau direvisi.
+                            Ã¢ÂÂ³ Bukti cicilan Anda sebelumnya sedang dalam antrean verifikasi Admin KDJ. Formulir pembayaran baru akan aktif kembali setelah bukti diverifikasi atau direvisi.
                         </div>
                     ) : (
                         <form onSubmit={handleSubmitInstallment} className="space-y-4">
@@ -385,18 +389,18 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                                         <td className="p-3">
                                             {inst.status === 'VERIFIED' && (
                                                 <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                                                    DIVERIFIKASI ✅
+                                                    DIVERIFIKASI Ã¢Å“â€¦
                                                 </span>
                                             )}
                                             {inst.status === 'PENDING_VERIFICATION' && (
                                                 <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold text-[10px]">
-                                                    MENUNGGU VERIFIKASI ⏳
+                                                    MENUNGGU VERIFIKASI Ã¢ÂÂ³
                                                 </span>
                                             )}
                                             {inst.status === 'REJECTED' && (
                                                 <div>
                                                     <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 font-bold text-[10px]">
-                                                        DITOLAK ❌
+                                                        DITOLAK Ã¢ÂÅ’
                                                     </span>
                                                     {inst.rejection_reason && (
                                                         <p className="mt-1 text-[10px] text-red-600 italic">&quot;{inst.rejection_reason}&quot;</p>
@@ -423,6 +427,7 @@ export default function DeparturePaymentSection({ onPaymentSuccess }) {
                     </div>
                 </div>
             )}
+            <FinancialDocumentsList key={financialDocumentsVersion} compact title="Invoice & Kwitansi Pembayaran" description="Invoice tagihan paket dan kuitansi setelah setiap cicilan diverifikasi Admin." />
         </section>
     );
 }

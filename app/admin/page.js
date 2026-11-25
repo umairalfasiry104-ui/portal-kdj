@@ -7,6 +7,7 @@ import AdminFollowupsPanel from './components/AdminFollowupsPanel';
 import AdminLeadQualificationPanel from './components/AdminLeadQualificationPanel';
 import AdminDailyReportPanel from './components/AdminDailyReportPanel';
 import AdminDepartureReviewPanel from './components/AdminDepartureReviewPanel';
+import AdminFinancialDocumentsPanel from './components/AdminFinancialDocumentsPanel';
 import AdminDepartureFollowupPanel from './components/AdminDepartureFollowupPanel';
 import AdminDepartureBatchPanel from './components/AdminDepartureBatchPanel';
 import AdminPasswordManager from './components/AdminPasswordManager';
@@ -71,6 +72,8 @@ export default function AdminDashboard() {
     // State Verifikasi Cicilan Paket Keberangkatan
     const [departureReviewInfo, setDepartureReviewInfo] = useState(null);
     const [departureReviewLoading, setDepartureReviewLoading] = useState(false);
+    const [financialDocumentInfo, setFinancialDocumentInfo] = useState([]);
+    const [financialDocumentLoading, setFinancialDocumentLoading] = useState(false);
     const [departureReviewReason, setDepartureReviewReason] = useState('');
     const [reviewingInstallmentId, setReviewingInstallmentId] = useState(null);
     const [catatanAdmin, setCatatanAdmin] = useState('');
@@ -393,10 +396,10 @@ useEffect(() => {
         setActiveTab(getDefaultTabForRole(data.admin?.role));
         loadRoleScopedData(data.admin?.role);
       } else {
-        setAuthMsg('❌ ' + (data.message || 'Gagal login Admin.'));
+        setAuthMsg('âŒ ' + (data.message || 'Gagal login Admin.'));
       }
     } catch {
-      setAuthMsg('❌ Terjadi kesalahan jaringan.');
+      setAuthMsg('âŒ Terjadi kesalahan jaringan.');
     } finally {
       setLoading(false);
     }
@@ -414,6 +417,8 @@ useEffect(() => {
     setStudentProgressInfo(undefined);
     setStudentProgressReason('');
     setDepartureReviewInfo(null);
+    setFinancialDocumentInfo([]);
+    setFinancialDocumentLoading(false);
     setDepartureReviewReason('');
     setReviewingInstallmentId(null);
 
@@ -435,6 +440,25 @@ useEffect(() => {
       }
     }
 
+    if (adminUser?.role === 'Super Admin') {
+      setFinancialDocumentLoading(true);
+      try {
+        const documentsResponse = await fetch(
+          '/api/financial-documents?pendaftar_id=' + encodeURIComponent(u.id),
+          { cache: 'no-store' }
+        );
+        const documentsResult = await documentsResponse.json().catch(() => null);
+        if (!documentsResponse.ok || documentsResult?.success !== true) {
+          throw new Error(documentsResult?.message || 'Gagal memuat invoice dan kuitansi.');
+        }
+        setFinancialDocumentInfo(documentsResult.documents || []);
+      } catch (documentError) {
+        console.error('Gagal memuat invoice dan kuitansi:', documentError);
+        setFinancialDocumentInfo([]);
+      } finally {
+        setFinancialDocumentLoading(false);
+      }
+    }
     if (adminUser?.role !== 'Super Admin') return;
     if (isApprovedApplicant) {
       setStudentProgressLoading(true);
@@ -614,7 +638,7 @@ useEffect(() => {
         throw new Error(result?.message || 'Gagal memverifikasi cicilan.');
       }
 
-      alert(action === 'APPROVE' ? '✅ Cicilan berhasil diverifikasi! Notifikasi WhatsApp telah dikirim.' : 'Bukti cicilan ditolak.');
+      alert(action === 'APPROVE' ? 'âœ… Cicilan berhasil diverifikasi! Notifikasi WhatsApp telah dikirim.' : 'Bukti cicilan ditolak.');
       setDepartureReviewReason('');
 
       // Reload data
@@ -624,6 +648,9 @@ useEffect(() => {
         setDepartureReviewInfo(depData);
       }
       if (adminUser?.role === 'Super Admin') {
+        const documentsResponse = await fetch('/api/financial-documents?pendaftar_id=' + encodeURIComponent(selectedUser.id), { cache: 'no-store' });
+        const documentsResult = await documentsResponse.json().catch(() => null);
+        if (documentsResponse.ok && documentsResult?.success === true) setFinancialDocumentInfo(documentsResult.documents || []);
         await reloadStudentProgress(selectedUser.id);
       }
     } catch (err) {
@@ -726,11 +753,11 @@ useEffect(() => {
         await fetchPendaftar();
         setSelectedUser(null);
       } else {
-        alert('❌ Gagal update: ' + (data?.message || 'Terjadi kesalahan pada server.'));
+        alert('âŒ Gagal update: ' + (data?.message || 'Terjadi kesalahan pada server.'));
       }
     } catch (err) {
       console.error('Error saat update data pendaftar:', err);
-      alert('❌ Terjadi kesalahan jaringan atau server tidak merespons.');
+      alert('âŒ Terjadi kesalahan jaringan atau server tidak merespons.');
     } finally {
       setLoading(false);
     }
@@ -779,24 +806,24 @@ useEffect(() => {
     {
       title: 'Operasional',
       items: [
-        ...(canAccessPendaftarTab(adminUser?.role) ? [{ id: 'pendaftar', label: 'Data Pendaftar', icon: '▤', count: pendaftarList.length }] : []),
-        ...(canAccessJadwalTab(adminUser?.role) ? [{ id: 'jadwal', label: 'Jadwal Konsultasi', icon: '◷', count: jadwalList.length }] : []),
-        ...(canAccessLeadQualificationTab(adminUser?.role) ? [{ id: 'lead-qualification', label: 'Kualifikasi Lead', icon: '◎' }] : [])
+        ...(canAccessPendaftarTab(adminUser?.role) ? [{ id: 'pendaftar', label: 'Data Pendaftar', icon: 'â–¤', count: pendaftarList.length }] : []),
+        ...(canAccessJadwalTab(adminUser?.role) ? [{ id: 'jadwal', label: 'Jadwal Konsultasi', icon: 'â—·', count: jadwalList.length }] : []),
+        ...(canAccessLeadQualificationTab(adminUser?.role) ? [{ id: 'lead-qualification', label: 'Kualifikasi Lead', icon: 'â—Ž' }] : [])
       ]
     },
     {
       title: 'Keberangkatan',
       items: [
-        ...(adminUser?.role === 'Super Admin' ? [{ id: 'departure-batches', label: 'Gelombang Keberangkatan', icon: '⇢' }] : []),
-        ...(canViewDeparturePayments(adminUser?.role) ? [{ id: 'departure-followups', label: 'Monitoring Pelunasan', icon: '◫' }] : [])
+        ...(adminUser?.role === 'Super Admin' ? [{ id: 'departure-batches', label: 'Gelombang Keberangkatan', icon: 'â‡¢' }] : []),
+        ...(canViewDeparturePayments(adminUser?.role) ? [{ id: 'departure-followups', label: 'Monitoring Pelunasan', icon: 'â—«' }] : [])
       ]
     },
     {
       title: 'Monitoring & Tim',
       items: [
-        ...(adminUser?.role === 'Super Admin' ? [{ id: 'followups', label: 'Follow Up', icon: '↗' }, { id: 'system', label: 'Monitoring Sistem', icon: '⌘' }] : []),
-        ...(canAccessAdminsTab(adminUser?.role) ? [{ id: 'admins', label: 'Tim Admin', icon: '♙', count: adminList.length }] : []),
-        ...(['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser?.role) ? [{ id: 'daily-report', label: 'Laporan Harian Bot', icon: '▥' }] : [])
+        ...(adminUser?.role === 'Super Admin' ? [{ id: 'followups', label: 'Follow Up', icon: 'â†—' }, { id: 'system', label: 'Monitoring Sistem', icon: 'âŒ˜' }] : []),
+        ...(canAccessAdminsTab(adminUser?.role) ? [{ id: 'admins', label: 'Tim Admin', icon: 'â™™', count: adminList.length }] : []),
+        ...(['Super Admin', 'Admin Konsultan', 'Admin Viewer'].includes(adminUser?.role) ? [{ id: 'daily-report', label: 'Laporan Harian Bot', icon: 'â–¥' }] : [])
       ]
     }
   ].filter((group) => group.items.length > 0);
@@ -821,7 +848,7 @@ useEffect(() => {
       <div className="min-h-screen flex flex-col bg-[#06315b]">
         <div className="bg-[#042444] text-slate-200 text-xs py-2 px-4 sm:px-6 border-b border-[#0a3f73]">
           <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
-            <span>📞 0813-6624-5544 | ✉️ admin@kuliahdijordan.com</span>
+            <span>ðŸ“ž 0813-6624-5544 | âœ‰ï¸ admin@kuliahdijordan.com</span>
             <Link href="/" className="text-amber-400 hover:underline font-semibold">&larr; Ke Portal Mahasiswa</Link>
           </div>
         </div>
@@ -918,7 +945,7 @@ useEffect(() => {
                         aria-label="Tutup menu"
                         className="ml-2 rounded-lg p-2 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden"
                     >
-                        <span aria-hidden="true" className="text-xl leading-none">×</span>
+                        <span aria-hidden="true" className="text-xl leading-none">Ã—</span>
                     </button>
                 </div>
 
@@ -984,7 +1011,7 @@ useEffect(() => {
                         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 ring-4 ring-emerald-400/10" title="Sesi Admin aktif" />
                     </div>
                     <Link href="/" className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-                        <span aria-hidden="true">↗</span>
+                        <span aria-hidden="true">â†—</span>
                         Kembali ke Portal Mahasiswa
                     </Link>
                 </div>
@@ -1000,7 +1027,7 @@ useEffect(() => {
                             aria-expanded={isSidebarOpen}
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#06315b] shadow-sm transition hover:bg-slate-50 lg:hidden"
                         >
-                            <span aria-hidden="true" className="text-lg">☰</span>
+                            <span aria-hidden="true" className="text-lg">â˜°</span>
                         </button>
 
                         <div className="min-w-0 flex-1">
@@ -1026,7 +1053,7 @@ useEffect(() => {
                                 onClick={handleLogoutAdmin}
                                 className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
                             >
-                                <span aria-hidden="true">↪</span>
+                                <span aria-hidden="true">â†ª</span>
                                 <span className="hidden sm:inline">Keluar</span>
                             </button>
                         </div>
@@ -1040,7 +1067,7 @@ useEffect(() => {
                         <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                             <h2 className="font-extrabold text-[#06315b]">Daftar Calon Mahasiswa</h2>
                             <button onClick={fetchPendaftar} className="text-xs font-bold text-[#06315b] hover:underline">
-                                🔄 Refresh Data
+                                ðŸ”„ Refresh Data
                             </button>
                         </div>
                         <div className="divide-y divide-slate-100">
@@ -1059,10 +1086,10 @@ useEffect(() => {
                                                 {item.nama_leads || item.nama_lengkap || 'Nama belum diberikan'}
                                             </div>
                                             <div className="text-xs text-slate-600 mt-0.5">
-                                                WA: <span className="font-mono">{item.no_wa}</span> • Kampus: <span className="font-bold text-[#06315b]">{item.pilihan_kampus || '-'}</span>
+                                                WA: <span className="font-mono">{item.no_wa}</span> â€¢ Kampus: <span className="font-bold text-[#06315b]">{item.pilihan_kampus || '-'}</span>
                                             </div>
                                             <div className="text-[11px] text-slate-400 mt-1">
-                                                Berkas Portal: {(item.dokumen_pendaftar || []).filter((doc) => ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'].includes(doc.jenis_dokumen)).length} / 4 • Bayar: <strong className="text-slate-600">{item.status_pembayaran || 'Belum Bayar'}</strong>
+                                                Berkas Portal: {(item.dokumen_pendaftar || []).filter((doc) => ['pasfoto', 'ijazah', 'transkrip', 'akta_kelahiran'].includes(doc.jenis_dokumen)).length} / 4 â€¢ Bayar: <strong className="text-slate-600">{item.status_pembayaran || 'Belum Bayar'}</strong>
                                             </div>
                                         </div>
                                         <span className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase ${
@@ -1090,7 +1117,7 @@ useEffect(() => {
                                 Nama lengkap: {selectedUser.nama_lengkap || 'Belum diisi'}
                             </p>
                             <p className="text-xs text-slate-500">
-                                WA: {selectedUser.no_wa} • Paspor: {selectedUser.no_paspor || '-'}
+                                WA: {selectedUser.no_wa} â€¢ Paspor: {selectedUser.no_paspor || '-'}
                             </p>
                             </div>
 
@@ -1174,7 +1201,7 @@ useEffect(() => {
                                             {paymentReview.proof ? (
                                                 <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
                                                     <p className="text-xs font-bold text-slate-700">
-                                                        Bukti pembayaran #{paymentReview.proof.attempt_no} · {paymentReview.proof.status}
+                                                        Bukti pembayaran #{paymentReview.proof.attempt_no} Â· {paymentReview.proof.status}
                                                     </p>
                                                     <p className="text-[11px] text-slate-500 break-all">{paymentReview.proof.original_filename}</p>
                                                     {paymentReview.proof.signed_url && (
@@ -1275,7 +1302,7 @@ useEffect(() => {
                                                 <span className="text-slate-600">Tagihan: Rp {Number(selectedUser.nominal_tagihan || 1500000).toLocaleString('id-ID')}</span>
                                                 {selectedUser.bukti_bayar_url ? (
                                                     <Link href={selectedUser.bukti_bayar_url} target="_blank" rel="noreferrer" className="text-amber-600 font-bold underline">
-                                                        🔍 Lihat Bukti Transfer
+                                                        ðŸ” Lihat Bukti Transfer
                                                     </Link>
                                                 ) : (
                                                     <span className="text-red-500 font-semibold">Belum ada bukti bayar</span>
@@ -1342,7 +1369,7 @@ useEffect(() => {
                                                                     <p className="text-xs font-bold text-slate-800">{document.label}</p>
                                                                     <p className="text-[10px] text-slate-500">
                                                                         {currentDocument
-                                                                            ? `Tersedia · versi ${currentDocument.version_no} · ${currentDocument.original_filename}`
+                                                                            ? `Tersedia Â· versi ${currentDocument.version_no} Â· ${currentDocument.original_filename}`
                                                                             : 'Belum tersedia'}
                                                                     </p>
                                                                 </div>
@@ -1441,6 +1468,15 @@ useEffect(() => {
                                 onReview={handleReviewDepartureInstallment}
                             />
 
+                            {adminUser?.role === 'Super Admin' && (
+                                <AdminFinancialDocumentsPanel
+                                    key={selectedUser.id}
+                                    pendaftarId={selectedUser.id}
+                                    documents={financialDocumentInfo}
+                                    loading={financialDocumentLoading}
+                                />
+                            )}
+
                             {/* PEMERIKSAAN DOKUMEN PERSYARATAN */}
                             {['Super Admin', 'Admin Verifikator'].includes(adminUser?.role) && (
                             <div className="space-y-2.5">
@@ -1462,8 +1498,8 @@ useEffect(() => {
                                         className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white font-semibold"
                                     >
                                         <option value="pending">Pending</option>
-                                        <option value="approved">Approved ✅</option>
-                                        <option value="rejected">Rejected ❌</option>
+                                        <option value="approved">Approved âœ…</option>
+                                        <option value="rejected">Rejected âŒ</option>
                                     </select>
                                     </div>
                                 ))
@@ -1484,8 +1520,8 @@ useEffect(() => {
                                     <>
                                       <option value="Submitted">Submitted (Menunggu Verifikasi)</option>
                                       <option value="Revisi Diajukan">Revisi Diajukan</option>
-                                      <option value="Approved">Approved (Lolos Berkas) ✅</option>
-                                      <option value="Rejected">Rejected / Perlu Revisi ⚠️</option>
+                                      <option value="Approved">Approved (Lolos Berkas) âœ…</option>
+                                      <option value="Rejected">Rejected / Perlu Revisi âš ï¸</option>
                                     </>
                                   ) : (
                                     <>
@@ -1493,8 +1529,8 @@ useEffect(() => {
                                       <option value="draft_berkas">Draft Berkas</option>
                                       <option value="Submitted">Submitted (Menunggu Verifikasi)</option>
                                       <option value="Revisi Diajukan">Revisi Diajukan</option>
-                                      <option value="Approved">Approved (Lolos Berkas) ✅</option>
-                                      <option value="Rejected">Rejected / Perlu Revisi ⚠️</option>
+                                      <option value="Approved">Approved (Lolos Berkas) âœ…</option>
+                                      <option value="Rejected">Rejected / Perlu Revisi âš ï¸</option>
                                     </>
                                   )}
                                 </select>
@@ -1556,7 +1592,7 @@ useEffect(() => {
                                     </button>
                                 )}
                                 <button onClick={fetchJadwal} className="text-xs font-bold text-blue-600 hover:underline">
-                                    🔄 Refresh Jadwal
+                                    ðŸ”„ Refresh Jadwal
                                 </button>
                             </div>
                         </div>
@@ -1604,7 +1640,7 @@ useEffect(() => {
                                                         {formatJakartaDateTime(j.jadwal_pilihan)}
                                                     </p>
                                                     <p className="text-[10px] text-slate-500 mt-2">
-                                                        Durasi sesi: 120 menit · Kalender diblokir: 150 menit termasuk buffer.
+                                                        Durasi sesi: 120 menit Â· Kalender diblokir: 150 menit termasuk buffer.
                                                     </p>
 
                                                     {(() => {
@@ -1678,7 +1714,7 @@ useEffect(() => {
                                                                                 className="rounded-md bg-amber-50 border border-amber-200 p-2"
                                                                             >
                                                                                 <p className="text-[10px] font-bold text-slate-800">
-                                                                                    {alertEvent.event_type} · {alertEvent.status}
+                                                                                    {alertEvent.event_type} Â· {alertEvent.status}
                                                                                 </p>
 
                                                                                 {alertEvent.last_error && (
@@ -1725,9 +1761,9 @@ useEffect(() => {
                                                             onChange={(event) => handleUpdateStatusJadwal(j.id, event.target.value)}
                                                             className="w-full text-xs font-semibold px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none disabled:opacity-60"
                                                         >
-                                                            <option value="Terjadwal">📅 Terjadwal</option>
-                                                            <option value="Selesai">✅ Selesai</option>
-                                                            <option value="Batal">❌ Batal</option>
+                                                            <option value="Terjadwal">ðŸ“… Terjadwal</option>
+                                                            <option value="Selesai">âœ… Selesai</option>
+                                                            <option value="Batal">âŒ Batal</option>
                                                         </select>
                                                     </div>
 
@@ -1787,7 +1823,7 @@ useEffect(() => {
                                                                     className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
                                                                 />
                                                                 <p className="mt-1 text-[10px] text-slate-500">
-                                                                    Senin–Jumat, 09.00–15.00 WIB. Sistem memeriksa ketersediaan kalender.
+                                                                    Seninâ€“Jumat, 09.00â€“15.00 WIB. Sistem memeriksa ketersediaan kalender.
                                                                 </p>
                                                             </div>
 
@@ -1943,7 +1979,7 @@ useEffect(() => {
                 onClick={() => fetchAdmins(adminUser.role)}
                 className="text-xs font-bold text-[#06315b] hover:underline"
               >
-                🔄 Refresh Direktori
+                ðŸ”„ Refresh Direktori
               </button>
             </div>
             <div className="divide-y divide-slate-100">
@@ -1967,7 +2003,7 @@ useEffect(() => {
                         )}
                       </div>
                       <div className="text-xs text-slate-500 font-mono mt-0.5">
-                        Email: {adm.email || 'Belum diisi'} • WA: {adm.no_wa || 'Belum diisi'}
+                        Email: {adm.email || 'Belum diisi'} â€¢ WA: {adm.no_wa || 'Belum diisi'}
                       </div>
                     </div>
 
