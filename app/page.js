@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import DeparturePaymentSection from './components/DeparturePaymentSection';
+import FinancialDocumentsList from './components/FinancialDocumentsList';
 
 // Komponen Logo Header Navbar (Auto-crop ruang kosong putih agar tampil besar & proporsional)
 function KDJLogoHeader() {
@@ -44,8 +45,8 @@ function OfficialHeader({ rightAction }) {
             <div className="bg-[#042444] text-slate-200 text-xs py-2 px-4 sm:px-6 border-b border-[#0a3f73]">
                 <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
                     <div className="flex items-center gap-5">
-                        <span>📞 0813-6624-5544</span>
-                        <span>✉️ admin@kuliahdijordan.com</span>
+                        <span>ðŸ“ž 0813-6624-5544</span>
+                        <span>âœ‰ï¸ admin@kuliahdijordan.com</span>
                     </div>
                     <div className="text-[11px] text-amber-400 font-medium">
                         Lembaga Pionir Pengurusan Kuliah di Yordania Sejak 2016
@@ -283,12 +284,12 @@ export default function PortalKDJ() {
             const data = await res.json();
             if (data.success) {
                 setAuthStep(2);
-                setMessage('✅ Kode OTP telah dikirim ke WhatsApp Anda!');
+                setMessage('âœ… Kode OTP telah dikirim ke WhatsApp Anda!');
             } else {
-                setMessage('❌ ' + data.message);
+                setMessage('âŒ ' + data.message);
             }
         } catch {
-            setMessage('❌ Gagal menghubungi server.');
+            setMessage('âŒ Gagal menghubungi server.');
         } finally {
             setLoading(false);
         }
@@ -325,10 +326,10 @@ export default function PortalKDJ() {
                 });
                 fetchUploadedDocs(data.user.no_wa);
             } else {
-                setMessage('❌ ' + data.message);
+                setMessage('âŒ ' + data.message);
             }
         } catch {
-            setMessage('❌ Terjadi kesalahan jaringan.');
+            setMessage('âŒ Terjadi kesalahan jaringan.');
         } finally {
             setLoading(false);
         }
@@ -435,10 +436,10 @@ if (nextStep) {
 }
 
             } else {
-                alert('❌ Gagal menyimpan: ' + data.message);
+                alert('âŒ Gagal menyimpan: ' + data.message);
             }
         } catch {
-            alert('❌ Terjadi kesalahan saat menyimpan data.');
+            alert('âŒ Terjadi kesalahan saat menyimpan data.');
         } finally {
             setLoading(false);
         }
@@ -480,16 +481,16 @@ if (nextStep) {
                     setUser(updatedUser);
                     localStorage.setItem('kdj_user', JSON.stringify(updatedUser));
                     await fetchUploadedDocs(user.no_wa);
-                    alert('✅ Bukti transfer pembayaran berhasil diunggah dan menunggu pemeriksaan Admin!');
+                    alert('âœ… Bukti transfer pembayaran berhasil diunggah dan menunggu pemeriksaan Admin!');
                 } else {
                     setUploadedDocs((prev) => ({ ...prev, [jenisDokumen]: result.doc }));
-                    alert(`✅ Dokumen ${jenisDokumen} berhasil diunggah!`);
+                    alert(`âœ… Dokumen ${jenisDokumen} berhasil diunggah!`);
                 }
             } else {
-                alert('❌ Gagal upload: ' + result.message);
+                alert('âŒ Gagal upload: ' + result.message);
             }
         } catch {
-            alert('❌ Terjadi kesalahan saat mengunggah file.');
+            alert('âŒ Terjadi kesalahan saat mengunggah file.');
         } finally {
             setUploadingDoc('');
         }
@@ -590,7 +591,7 @@ if (nextStep) {
                             <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-600 rounded-r-xl shadow-sm">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                     <h3 className="text-red-800 font-extrabold text-base flex items-center gap-2">
-                                        ⚠️ Berkas / Pembayaran Perlu Direvisi (Ditolak Sementara)
+                                        âš ï¸ Berkas / Pembayaran Perlu Direvisi (Ditolak Sementara)
                                     </h3>
                                     <span className="px-3 py-1 text-[11px] font-extrabold bg-red-200 text-red-900 rounded-full uppercase">
                                         Perlu Perbaikan
@@ -609,7 +610,7 @@ if (nextStep) {
                             <div className="mb-8 p-5 bg-amber-50 border-l-4 border-amber-400 rounded-r-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <h3 className="text-[#06315b] font-extrabold text-base flex items-center gap-2">
-                                        ⏳ Pendaftaran Sedang Diverifikasi Tim Admin
+                                        â³ Pendaftaran Sedang Diverifikasi Tim Admin
                                     </h3>
                                     <p className="text-slate-600 mt-1 text-xs leading-relaxed">
                                         {isUnlockedManually
@@ -623,7 +624,7 @@ if (nextStep) {
                                         onClick={() => setIsUnlockedManually(true)}
                                         className="px-3.5 py-2 bg-white hover:bg-slate-100 text-[#06315b] border border-amber-400 rounded-lg text-xs font-bold shrink-0 shadow-sm transition"
                                     >
-                                        ✏️ Edit Data / Berkas
+                                        âœï¸ Edit Data / Berkas
                                     </button>
                                 )}
                             </div>
@@ -632,7 +633,7 @@ if (nextStep) {
                         {isApproved && (
                             <div className="mb-8 p-5 bg-emerald-50 border-l-4 border-emerald-600 rounded-r-xl shadow-sm">
                                 <h3 className="text-emerald-800 font-extrabold text-base flex items-center gap-2">
-                                    ✅ Pendaftaran & Berkas Disetujui (Approved)
+                                    âœ… Pendaftaran & Berkas Disetujui (Approved)
                                 </h3>
                                 <p className="text-emerald-700 mt-1 text-xs leading-relaxed">
                                     Alhamdulillah! Seluruh berkas persyaratan dan pembayaran administrasi Anda telah dinyatakan lengkap dan valid oleh Tim Kuliah di Jordan.
@@ -718,7 +719,7 @@ if (nextStep) {
                                                     <div className="min-w-0">
                                                         <p className="text-xs font-bold text-slate-800">{item.label}</p>
                                                         <p className="mt-1 text-[11px] text-slate-500">
-                                                            {document ? `Tersedia · versi ${document.version_no}` : 'Belum tersedia'}
+                                                            {document ? `Tersedia Â· versi ${document.version_no}` : 'Belum tersedia'}
                                                         </p>
                                                     </div>
                                                     {document?.download_url ? (
@@ -732,7 +733,7 @@ if (nextStep) {
                                                         </a>
                                                     ) : document?.download_locked ? (
                                                         <span className="shrink-0 rounded-md bg-amber-100 text-amber-900 border border-amber-300 px-2 py-1 text-[10px] font-bold" title={document.lock_reason}>
-                                                            Terkunci (Belum Lunas) 🔒
+                                                            Terkunci (Belum Lunas) ðŸ”’
                                                         </span>
                                                     ) : (
                                                         <span className="shrink-0 text-[11px] font-semibold text-slate-400">Menunggu</span>
@@ -960,6 +961,12 @@ if (nextStep) {
                                     {followupConsentMessage && <p role="status" className="text-[10px] text-slate-600">{followupConsentMessage}</p>}
                                 </div>
 
+                                <FinancialDocumentsList
+                                    title="Invoice & Kwitansi Pendaftaran"
+                                    description="Invoice tagihan pendaftaran dan kuitansi setelah pembayaran diverifikasi Admin."
+                                    compact
+                                />
+
                                 <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(1)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
                                         &lt; Kembali
@@ -1006,7 +1013,7 @@ if (nextStep) {
                                                     </div>
                                                     {uploaded ? (
                                                         <div className="flex items-center gap-3 mt-1">
-                                                            <span className="text-xs text-emerald-700 font-semibold">✅ Berkas Terunggah</span>
+                                                            <span className="text-xs text-emerald-700 font-semibold">âœ… Berkas Terunggah</span>
                                                             <span className={`text-[11px] px-2 py-0.5 rounded font-bold uppercase ${
                                                                 uploaded.status_dokumen === 'approved' ? 'bg-emerald-200 text-emerald-900' :
                                                                 uploaded.status_dokumen === 'rejected' ? 'bg-red-200 text-red-900' :
@@ -1045,6 +1052,12 @@ if (nextStep) {
                                         );
                                     })}
                                 </div>
+
+                                <FinancialDocumentsList
+                                    title="Invoice & Kwitansi Pendaftaran"
+                                    description="Invoice tagihan pendaftaran dan kuitansi setelah pembayaran diverifikasi Admin."
+                                    compact
+                                />
 
                                 <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(3)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">
@@ -1134,7 +1147,7 @@ if (nextStep) {
                                 {/* Rekening Tujuan */}
                                 <div className="p-4 bg-amber-50/70 border border-amber-300 rounded-xl">
                                     <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#06315b] mb-2">
-                                        💳 Rekening Resmi Pembayaran KDJ
+                                        ðŸ’³ Rekening Resmi Pembayaran KDJ
                                     </h4>
                                     <div className="space-y-1 text-xs sm:text-sm text-slate-700">
                                         <p>Bank Tujuan: <strong className="text-[#06315b]">Bank Syariah Indonesia (BSI)</strong></p>
@@ -1157,7 +1170,7 @@ if (nextStep) {
                                         </div>
                                         {buktiBayarUrl ? (
                                             <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-xs text-emerald-700 font-semibold">✅ Bukti Transfer Terunggah</span>
+                                                <span className="text-xs text-emerald-700 font-semibold">âœ… Bukti Transfer Terunggah</span>
                                                 <Link href={buktiBayarUrl} target="_blank" rel="noreferrer" className="text-xs text-[#06315b] font-semibold underline">
                                                     Lihat Bukti Transfer
                                                 </Link>
@@ -1186,6 +1199,12 @@ if (nextStep) {
                                         </label>
                                     )}
                                 </div>
+
+                                <FinancialDocumentsList
+                                    title="Invoice & Kwitansi Pendaftaran"
+                                    description="Invoice tagihan pendaftaran dan kuitansi setelah pembayaran diverifikasi Admin."
+                                    compact
+                                />
 
                                 <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-slate-100">
                                     <button type="button" onClick={() => setWizardStep(2)} className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition">

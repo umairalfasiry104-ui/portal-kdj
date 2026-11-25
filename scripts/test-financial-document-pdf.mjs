@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local', override: false });
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -111,6 +113,30 @@ if (process.env.KDJ_ISSUER_SIGNATURE_BASE64) {
 
 assertPdf(invoicePdf, 'INV-TEST-2026-0001');
 assertPdf(receiptPdf, 'KWT-TEST-2026-0001');
+
+if (process.env.KDJ_ISSUER_SIGNATURE_BASE64) {
+    const actualLogoBuffer = await readFile(new URL('../public/kdj-logo.png', import.meta.url));
+    const actualSignatureBuffer = Buffer.from(process.env.KDJ_ISSUER_SIGNATURE_BASE64, 'base64');
+    const actualLogoHash = createHash('sha256').update(actualLogoBuffer).digest('hex');
+    const actualSignatureHash = createHash('sha256').update(actualSignatureBuffer).digest('hex');
+    assert.equal(actualLogoHash, 'f767d1b60983722435769d59654b8693a4dbe4524f52249486e99bacbad15b6b');
+    assert.equal(actualSignatureHash, '82b765625730ec6ab70e9bc0f093ad1c40c3d0d4f643074e22596c9e07ba4c51');
+    const issuerWithImmutableAssets = {
+        ...issuer,
+        logo_sha256: actualLogoHash,
+        signature_sha256: actualSignatureHash
+    };
+    const signedInvoice = {
+        ...invoice,
+        document_snapshot: {
+            ...invoice.document_snapshot,
+            issuer: issuerWithImmutableAssets
+        }
+    };
+    const signedPdf = await renderFinancialDocumentPdf(signedInvoice);
+    assertPdf(signedPdf, 'INV-TEST-2026-0001');
+    console.log('[PASS] Local-only issuer signature and logo hashes match the immutable issuer snapshot.');
+}
 
 await assert.rejects(
     () => renderFinancialDocumentPdf({ ...invoice, document_type: 'INVALID' }, { logoBuffer, signatureBuffer: testSignatureBuffer }),
